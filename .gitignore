@@ -1,3 +1,4 @@
 #MATLAB
 *.asv
 *.m~
+*.mat
