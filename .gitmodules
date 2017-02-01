@@ -1,0 +1,3 @@
+[submodule "+uiextras"]
+	path = +uiextras
+	url = https://github.com/dkovari/MATuiextras/
