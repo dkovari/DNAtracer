@@ -115,7 +115,7 @@ R = ridgefilt_idx(im_filt,CC.PixelIdxList);
 IM = R; %image data to use in tracing, could change this to im_filt
 THRESH = 0.12; %threshold to use, if using im_filt this should be "th"
 
-MoleculeData(numel(CC.PixelIdxList)) = struct('YX',[],'SubImg',[],'PixelIdxList',[]);
+MoleculeData(numel(CC.PixelIdxList)) = struct('SubImg',[],'PixelIdxList',[],'Segment',[]);
 
 for n=1:numel(CC.PixelIdxList)
     MoleculeData(n).PixelIdxList = CC.PixelIdxList{n};
