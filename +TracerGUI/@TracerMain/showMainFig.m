@@ -21,9 +21,16 @@ movegui(hFig,'northwest');
 
 %% Create menu items
 
+% File Menu
+hMenu_File = uimenu(hFig,'Label','File');
+uimenu(hMenu_File,'Label','Open');
+uimenu(hMenu_File,'Label','Save');
+uimenu(hMenu_File,'Label','Save As...');
+uimenu(hMenu_File,'Label','Close');
+
+
 %Windows menu
 hMenu_Win = uimenu(hFig,'Label','Windows');
-
 uimenu(hMenu_Win,'Label','List');
 uimenu(hMenu_Win,'Label','View');
 uimenu(hMenu_Win,'Label','Controls');

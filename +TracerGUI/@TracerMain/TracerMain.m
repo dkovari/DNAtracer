@@ -1,9 +1,10 @@
-classdef TracerGUI
-    %TRACERGUI Summary of this class goes here
+classdef TracerMain
+    %TRACERMAIN Summary of this class goes here
     %   Detailed explanation goes here
     
     properties
-        TraceData %struct holding all the processed data
+        traceData %struct holding all the processed data
+        SaveUpToDate = false;
     end
     
     properties %GUI handles
@@ -17,7 +18,7 @@ classdef TracerGUI
     end
     
     methods %creation/deletion methods
-        function this = TracerGUI(data)
+        function this = TracerMain(data)
             persistent LastDir;
             if nargin<1 || isempty(data)
                 %Ask to load from workspace or file
@@ -40,12 +41,15 @@ classdef TracerGUI
             end
             
             this.TraceData = data;
+            this.SaveUpToDate = true;
             
             %% Create Main Menu
             this.hMainFig = this.showMainFig();
             
             %% Create List Window
             this.hListFig = this.showListFig();
+            
+            
         end
     end
     
