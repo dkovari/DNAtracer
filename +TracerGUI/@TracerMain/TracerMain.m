@@ -1,65 +1,116 @@
-classdef TracerMain
+classdef TracerMain < handle
     %TRACERMAIN Summary of this class goes here
     %   Detailed explanation goes here
     
     properties
-        traceData %struct holding all the processed data
-        SaveUpToDate = false;
+        traceDataHandler %object holding all the processed data
+        selectedMoleculeSegments; %Column1=moleculeID, Column2=segmentID
+        
+        traceTable;
+        tracePlot
     end
     
     properties %GUI handles
         hMainFig; %handle to main window
-        
-        hListFig; %handle to list window
-        hListTable; %handle to list table
-        
-        hViewFig; %handle to view window
-        hControlFig; %handle to controls window
+    end
+    
+    %% main figure menu hghandles
+    properties(Access=private)
+        hMenu_Save;
     end
     
     methods %creation/deletion methods
         function this = TracerMain(data)
-            persistent LastDir;
-            if nargin<1 || isempty(data)
-                %Ask to load from workspace or file
-                
-                %file
-                [FileName,PathName] = uigetfile({'*.mat','MATLAB Data';'*.*','All Files (*.*)'},'Select TraceData File',fullfile(LastDir,'*.mat'));
-                if FileName == 0
-                    return;
-                end
-                LastDir = PathName;
-                filename = fullfile(PathName,FileName);
-                data = load(filename);
-            elseif ischar(data)
-                data = load(data);
+            
+            if nargin<1
+                data = [];
             end
             
-            %% validate data
-            if ~isstruct(data)
-                error('input argument must be a file path or a struct containing data');
-            end
+            %% create data handler
+            this.traceDataHandler = TracerGUI.TracerData(data);
             
-            this.TraceData = data;
-            this.SaveUpToDate = true;
+            %% associate event listeners
+            addlistener(this.traceDataHandler,'SaveStatusChanged',@(~,~)this.saveStateChangeCallback);
             
             %% Create Main Menu
             this.hMainFig = this.showMainFig();
             
-            %% Create List Window
-            this.hListFig = this.showListFig();
+            %% Create table of traces
+            this.traceTable = TracerGUI.TracerTable(this);
+            this.traceTable.showFigure(this);
+            
+            %% Create plot of traces
+            this.tracePlot = TracerGUI.TracerPlot(this);
+            this.tracePlot.showFigure(this);
             
             
+        end
+        function delete(this)
+            try
+                delete(this.hMainFig);
+            catch
+            end
+            
+            try
+                delete(this.traceTable);
+                delete(this.tracePlot);
+                delete(this.traceDataHandler);
+            catch
+            end
         end
     end
     
     %% Private Methods
     methods
         hFig = showMainFig(this)
-        hFig = showListFig(this)
-        hFig = showViewFig(this)
-        hFig = showControlFig(this)
     end
     
+    %% Main Figure File Callbacks
+    methods
+        function openFile(this)
+            answer = questdlg('Save current data before opening new file?','Save?','Yes','No','Cancel','Yes');
+            if strcmp(answer,'Cancel')
+                return;
+            elseif strcmp(anwer,'Yes')
+                this.saveFileAs(this);
+            end
+
+            %open new data handler
+            this.traceDataHandler.loadData();
+        end
+        function saveFile(this)
+            this.traceDataHandler.saveFile();
+        end
+        function saveFileAs(this)
+            this.traceDataHandler.saveFileAs();
+        end
+        function closeFile(this)
+            if this.traceDataHandler.dataChangedSinceSave
+                answer = questdlg('Save file before exiting?','Save?','Yes','No','Cancel','Yes');
+            if strcmp(answer,'Cancel')
+                return;
+            elseif strcmp(anwer,'Yes')
+                this.saveFile(this);
+            end
+            end
+            delete(this);
+        end
+    end
+    
+    %% Event Callbacks
+    methods
+        keyPressCallback(this,obj,event)
+        function saveStateChangeCallback(this)
+            set(this.hMenu_Save,'Enable',tf_2_on_off(this.traceDataHandler.dataChangedSinceSave));
+        end
+    end
 end
 
+
+function str=tf_2_on_off(tf)
+    if tf
+        str = 'on';
+    else
+        str = 'off';
+    end
+end

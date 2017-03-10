@@ -25,16 +25,35 @@ classdef crspline < matlab.mixin.SetGet
 %
 %       plot(...,'Interactive',true) generates an interactive curve
 %       allowing the user to add, remove, and move knots
+%
+%
+% Firing Callbacks from edits
+%   The X and Y values are observable, so you can create event listeners to
+%   monitor set-changes to those parameters
+%
+%   Alternatively, you can set the callback:
+%       hCrObj.UIeditCallback = ...[YOUR_FUNCTION]...
+%   which will call [YOUR_FUNCTION] using the standard matlab callback
+%   conventions
+%
 %% Copyright 2017, Daniel T. Kovari, Emory University
 % All rights reserved
 
 %% Change Log
 %   2017-02-02 DTK
 %       Initial creation
+%   2017-03-10 DTK
+%       Added listeners for changes to X and Y data
+%       added Callback for ui-edit events
 %%    
     properties (SetObservable = true)
         X; %xpoints
         Y; %ypoints
+        Tension=0.5;
+    end
+    
+    properties
+        UIeditCallback;
     end
     
     properties (Access=private)
@@ -51,8 +70,37 @@ classdef crspline < matlab.mixin.SetGet
         orig_MouseUp;
     end
     
+    %x
+    properties(Access=private,Dependent=true)
+        pltX;
+        pltY;
+    end
+    methods
+        function X = get.pltX(this)
+            if numel(this.X)<numel(this.Y)
+                X = [this.X;NaN(numel(this.Y)-numel(this.X),1)];
+            else
+                X=this.X;
+            end
+        end
+        function Y = get.pltY(this)
+            if numel(this.Y)<numel(this.X)
+                Y = [this.Y;NaN(numel(this.X)-numel(this.Y),1)];
+            else
+                Y=this.Y;
+            end
+        end
+    end
+    
     methods %creator destructor
         function this = crspline(X,Y,varargin)
+
+            p=inputParser;
+            p.CaseSensitive=false;
+            addParameter(p,'Tension',0.5,@(x) isnumeric(x)&&isscalar(x));
+            parse(p,varargin{:});
+            this.Tension = p.Results.Tension;
+            
             if any(size(X)~=size(Y))
                 error('X and Y must be same size');
             end
@@ -77,7 +125,7 @@ classdef crspline < matlab.mixin.SetGet
     
     methods
         function L = curve_length(this)
-            [qX,qY] = crspline.CRline(this.X,this.Y,500);
+            [qX,qY] = crspline.CRline(this.X,this.Y,500,this.Tension);
             L = sum(sqrt(diff(qX).^2+diff(qY).^2));
         end
     end
@@ -152,10 +200,10 @@ classdef crspline < matlab.mixin.SetGet
                         Y = [Y;Y(end)];
                     end
 
-                    [qX(n),qY(n)] = crspline.CR(X(seg:seg+3),Y(seg:seg+3),s);
+                    [qX(n),qY(n)] = crspline.CR(X(seg:seg+3),Y(seg:seg+3),s,this.Tension);
                 end
             else %user did not specify s_Data just plot all data
-                [qX,qY] = crspline.CRline(this.X,this.Y);
+                [qX,qY] = crspline.CRline(this.pltX,this.pltY,100,this.Tension);
             end
 
             %plot the line
@@ -173,11 +221,11 @@ classdef crspline < matlab.mixin.SetGet
             %plot the points if user specified style, or interactive
             if ~isempty(p.Results.PointProperties)||p.Results.Interactive
                 if iscell(p.Results.PointProperties)&&~isempty(p.Results.PointProperties)
-                    hPts = line('xdata',this.X,'ydata',this.Y,'parent',this.hAx,p.Results.PointProperties{:});
+                    hPts = line('xdata',this.pltX,'ydata',this.pltY,'parent',this.hAx,p.Results.PointProperties{:});
                 elseif isstruct(p.Results.PointProperties)
-                    hPts = line('xdata',this.X,'ydata',this.Y,'parent',this.hAx,p.Results.PointProperties);
+                    hPts = line('xdata',this.pltX,'ydata',this.pltY,'parent',this.hAx,p.Results.PointProperties);
                 else
-                    hPts = line('xdata',this.X,'ydata',this.Y,'parent',this.hAx,'LineStyle','none','marker','s','markeredgecolor',get(hLine,'color'),'markerfacecolor',get(hLine,'Color'),'markersize',8);
+                    hPts = line('xdata',this.pltX,'ydata',this.pltY,'parent',this.hAx,'LineStyle','none','marker','s','markeredgecolor',get(hLine,'color'),'markerfacecolor',get(hLine,'Color'),'markersize',8);
                 end
             end
             
@@ -212,6 +260,75 @@ classdef crspline < matlab.mixin.SetGet
         
     end
     
+    %get/set methods
+    methods
+        function set.X(this,X)
+            this.X = reshape(X,[],1);
+            this.update_draw();
+        end
+        function set.Y(this,Y)
+            this.Y = reshape(Y,[],1);
+            this.update_draw();
+        end
+        function set.Tension(this,T)
+            if ~(isscalar(T)&&isnumeric(T))
+                return;
+            end
+            this.Tension = T;
+            this.update_draw();
+        end
+        function set.UIeditCallback(this,fcn)
+            assert( isa(fcn,'function_handle')||...
+                ischar(fcn)||...
+                (iscell(fcn)&&...
+                    (isa(fcn{1},'function_handle')||ischar(fcn{1}))),...
+                    'invalid callback function');
+            this.UIeditCallback = fcn;
+        end
+        function b = plotValid(this)
+            b=ishghandle(this.hLine)&&~isempty(this.hLine);
+        end
+        function hl = LineHandle(this)
+            hl = this.hLine;
+        end
+    end
+    
+    %internal
+    methods(Access=private)
+        function update_draw(this)
+            
+            if isempty(this.hLine)||~ishghandle(this.hLine)
+                return;
+            end
+
+            %update line
+            [qx,qy] = crspline.CRline(this.pltX,this.pltY,100,this.Tension);
+            try
+                set(this.hLine,'xdata',qx,'ydata',qy');
+            catch
+            end
+            %update points
+            try
+                set(this.hPts,'xdata',this.pltX,'ydata',this.pltY);
+            catch
+            end
+            %update hidden segments
+            try
+                delete(this.hSeg);
+            catch
+            end
+            this.hSeg = gobjects(numel(this.pltX)-1,1);
+            for sn = 1:numel(this.pltX)-1
+                [qX,qY] = crspline.CRseg(this.pltX,this.pltY,sn,this.Tension);
+                this.hSeg(sn) = line(qX,qY,'parent',this.hAx,'visible','off','pickableparts','all','ButtonDownFcn',@(h,e) this.AddPt(h,e));
+                setappdata(this.hSeg(sn),'SegID',sn);
+            end
+
+            %put points back on top
+            uistack(this.hPts,'top');
+        end
+    end
+
     methods %callbacks
         function MouseClick(this,~,e)
             [~,this.MOVE_PT] = min( (this.X-e.IntersectionPoint(1)).^2 + (this.Y-e.IntersectionPoint(2)).^2);
@@ -229,7 +346,7 @@ classdef crspline < matlab.mixin.SetGet
                 this.X(this.MOVE_PT) = pt(1,1);
                 this.Y(this.MOVE_PT) = pt(1,2);
 
-                [qx,qy] = crspline.CRline(this.X,this.Y);
+                [qx,qy] = crspline.CRline(this.X,this.Y,100,this.Tension);
                 try
                 set(this.hLine,'xdata',qx,'ydata',qy');
                 catch
@@ -249,7 +366,7 @@ classdef crspline < matlab.mixin.SetGet
             segs = this.MOVE_PT-2:this.MOVE_PT+1;
             segs(segs<1|segs>numel(this.X)-1)=[];
             for sn=segs
-                [qx,qy]=crspline.CRseg(this.X,this.Y,sn);
+                [qx,qy]=crspline.CRseg(this.X,this.Y,sn,this.Tension);
                 try
                 set(this.hSeg(sn),'xdata',qx,'ydata',qy);
                 catch
@@ -260,6 +377,9 @@ classdef crspline < matlab.mixin.SetGet
             hFig = get(this.hAx,'parent');
             set(hFig,'WindowButtonMotionFcn',this.orig_MouseMove);
             set(hFig,'WindowButtonUpFcn',this.orig_MouseUp);
+            
+            %fire uieditcallback
+            hgfeval(this.UIeditCallback,this,struct('Event','DragDone'));
         end
 
         function DeletePt(this,~,~)
@@ -267,30 +387,10 @@ classdef crspline < matlab.mixin.SetGet
             this.Y(this.MOVE_PT) = [];
 
             %update line
-            [qx,qy] = crspline.CRline(this.X,this.Y);
-            try
-                set(this.hLine,'xdata',qx,'ydata',qy');
-            catch
-            end
-            %update points
-            try
-                set(this.hPts,'xdata',this.X,'ydata',this.Y);
-            catch
-            end
-            %update segments
-            try
-                delete(this.hSeg);
-            catch
-            end
-            this.hSeg = gobjects(numel(this.X)-1,1);
-            for sn = 1:numel(this.X)-1
-                [qX,qY] = crspline.CRseg(this.X,this.Y,sn);
-                this.hSeg(sn) = line(qX,qY,'parent',this.hAx,'visible','off','pickableparts','all','ButtonDownFcn',@(h,e) this.AddPt(h,e));
-                setappdata(this.hSeg(sn),'SegID',sn);
-            end
-
-            %put points back on top
-            uistack(this.hPts,'top');
+            this.update_draw();
+            
+            %fire uieditcallback
+            hgfeval(this.UIeditCallback,this,struct('Event','DeletePt'));
         end
 
         function AddPt(this,h,e)
@@ -303,42 +403,24 @@ classdef crspline < matlab.mixin.SetGet
             this.X = [this.X(1:seg);e.IntersectionPoint(1);this.X(seg+1:end)];
             this.Y = [this.Y(1:seg);e.IntersectionPoint(2);this.Y(seg+1:end)];
 
-            %update line
-            [qx,qy] = crspline.CRline(this.X,this.Y);
-            try
-                set(this.hLine,'xdata',qx,'ydata',qy');
-            catch
-            end
-            %update points
-            try
-                set(this.hPts,'xdata',this.X,'ydata',this.Y);
-            catch
-            end
-            %update segments
-            try
-                delete(this.hSeg);
-            catch
-            end
-            this.hSeg = gobjects(numel(this.X)-1,1);
-            for sn = 1:numel(this.X)-1
-                [qX,qY] = crspline.CRseg(this.X,this.Y,sn);
-                this.hSeg(sn) = line(qX,qY,'parent',this.hAx,'visible','off','pickableparts','all','ButtonDownFcn',@(h,e) this.AddPt(h,e));
-                setappdata(this.hSeg(sn),'SegID',sn);
-            end
-
-            %put points back on top
-            uistack(this.hPts,'top');
+            this.update_draw();
 
             %enable curve dragging
             this.MOVE_PT = seg+1;
             this.CLICK_ON = true;
             hFig = get(this.hAx,'parent');
             set(hFig,'WindowButtonUpFcn',@(h,e) this.MouseUp(h,e),'WindowButtonMotionFcn',@(h,e) this.MouseMove(h,e));
+            
+            %fire uieditcallback
+            hgfeval(this.UIeditCallback,this,struct('Event','AddPt'));
         end
     end
     
     methods (Static)
-        function [qX,qY] = CRline(X,Y,nPTS)
+        function [qX,qY] = CRline(X,Y,nPTS,T)
+            if nargin<4
+                T = 0.5;
+            end
             if nargin<3
                 nPTS = 100;
             end
@@ -347,13 +429,17 @@ classdef crspline < matlab.mixin.SetGet
             qX = [];
             qY = [];
             for n=1:numel(X)-3
-                [x,y] = crspline.CR(X(n:n+3),Y(n:n+3),linspace(0,1,nPTS));
+                [x,y] = crspline.CR(X(n:n+3),Y(n:n+3),linspace(0,1,nPTS),T);
                 qX=[qX;x];
                 qY=[qY;y];
             end
         end
 
-        function [qX,qY] = CRseg(X,Y,n)
+        function [qX,qY] = CRseg(X,Y,n,T)
+            if nargin<4
+                T = 0.5;
+            end
+            
             if n>=numel(X) || n<1
                 error('wrong n');
             end
@@ -370,17 +456,19 @@ classdef crspline < matlab.mixin.SetGet
                 Y = [Y;Y(end)];
             end
 
-            [qX,qY] = crspline.CR(X(n:n+3),Y(n:n+3),linspace(0.05,0.95,100));
+            [qX,qY] = crspline.CR(X(n:n+3),Y(n:n+3),linspace(0.05,0.95,100),T);
 
         end
 
-        function [qx,qy] = CR(X,Y,t)
+        function [qx,qy] = CR(X,Y,t,T)
+            if nargin<4
+                T = 0.5;
+            end
             t=reshape(t,[],1);
             X = reshape(X,[],1);
             Y = reshape(Y,[],1);
             tMat = [ones(numel(t),1),t,t.^2,t.^3];
 
-            T = 0.5;
             CRmat = [0,1,0,0;...
                   -T,0,T,0;...
                   2*T,T-3,3-2*T,-T;...

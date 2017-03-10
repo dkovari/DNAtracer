@@ -2,22 +2,49 @@ classdef TracerData < handle
     %TRACERDATA Class for holding and manipulating molecule trace data
     %   Detailed explanation goes here
     
-    properties
+    properties(Dependent)
+        MoleculeData;
+        im_data
+        im_data_flat
+        NS_data
         
     end
     
     properties (Access=private)
         data;
+        % data Structure:
+        %  data.ND_data
+        %       .im_data
+        %       .im_data_flat
+        %       .im_flat
+        %       .bin_data
+        %       .RidgeImage
+        %       .MoleculeData().
+        %           .SubImg
+        %           .PixelIdxList
+        %           .Segment()
+        %               .XY
+        %               .cspline
+        %               .CRnodes
+        %                   .X
+        %                   .Y
         
+        undoDataBuffer
     end
     
-    properties (SetAccess=private)
-        dataChangedSinceSave = false;
+    properties(SetAccess=private, SetObservable=true)
+        undoBufferAvailable = false;
         saveFileName;
         saveFileDir;
     end
     
+    properties (SetAccess=private)
+        dataChangedSinceSave = false;
+    end
+    
     events
+        SaveStatusChanged;
+        DataChanged;
     end
     
     %% __STRUCTORs
@@ -155,101 +182,337 @@ classdef TracerData < handle
         end
     end
     
-    %% Publicly Accessible Methods for data interaction
+    %% Publicly Accessible Methods for data modification
     methods
-        %% Remove Molecule
-        function removeMolecule(this,mol_id)
+        %% Undo
+        function undoLastOp(this)
+            if ~this.undoBufferAvailable || isempty(this.undoDataBuffer)
+                warning('The undo buffer does not contain data. Nothing will be changed');
+                this.undoBufferAvailable = false;
+            end
             
-            %% notify listeners
+            this.data = this.undoDataBuffer;
+            this.undoDataBuffer = [];
+            this.undoBufferAvailable = false;
+            
+            %% notify data listeners
+            this.notify('DataChanged');
+            %% notify save listeners
             wasOutdated = this.dataChangedSinceSave;
             this.dataChangedSinceSave = true;
             if ~wasOutdated
                 %notify
+                this.notify('SaveStatusChanged');
+            end
+            
+        end
+        %% Remove Molecule
+        function removeMolecule(this,mol_id)
+            %check that there is data
+            if isempty(this.data)
+                return;
+            end
+            %create undo buffer
+            this.undoDataBuffer = this.data;
+            this.undoBufferAvailable = true;
+            
+            
+            %delete
+            this.data.MoleculeData(mol_id) = [];
+            
+            %% notify data listeners
+            this.notify('DataChanged');
+            
+            %% notify save listeners
+            wasOutdated = this.dataChangedSinceSave;
+            this.dataChangedSinceSave = true;
+            if ~wasOutdated
+                %notify
+                this.notify('SaveStatusChanged');
             end
         end
         
         %% Split Molecule
         function splitMolecule(this,mol_id,new_segment_list)
+            %check that there is data
+            if isempty(this.data)
+                return;
+            end
+            %create undo buffer
+            this.undoDataBuffer = this.data;
+            this.undoBufferAvailable = true;
             
-            %% notify listeners
+            %split
+            mol_dat1 = this.data.MoleculeData(mol_id);
+            
+            mol_dat2 = mol_dat1;
+            
+            mol_dat1.Segment(new_segment_list) = [];
+            mol_dat2.Segment = mol_data2.Segment(new_segment_list);
+            
+            
+            this.data.MoleculeData = [this.data.MoleculeData(1:mol_id-1),...
+                                        mol_dat1,...
+                                        mol_dat2,...
+                                        this.data.MoleculeData(mol_id+1:end)];
+
+            
+            %% notify data listeners
+            this.notify('DataChanged');
+            
+            %% notify save listeners
             wasOutdated = this.dataChangedSinceSave;
             this.dataChangedSinceSave = true;
             if ~wasOutdated
                 %notify
+                this.notify('SaveStatusChanged');
             end
         end
         
         %% Merge Molecules
-        function mergeMolecule(this,mol_list)
+        function new_idx = mergeMolecule(this,mol_list)
             
-            %% notify listeners
+            %check that there is data
+            if isempty(this.data)
+                return;
+            end
+            %create undo buffer
+            this.undoDataBuffer = this.data;
+            this.undoBufferAvailable = true;
+            
+            %% merge
+            
+            %new molecule will be stored in lowest index
+            [new_idx,ind] = min(mol_list);
+            
+            
+            mol_dat = this.data.MoleculeData(mol_list(1));
+            for n=2:numel(mol_list)
+                %update subimg
+                new_mol = this.data.MoleculeData(mol_list(n));
+                mol_dat.SubImg(1,1) = min(mol_dat.SubImg(1,1),new_mol.SubImg(1,1));
+                mol_dat.SubImg(1,2) = min(mol_dat.SubImg(1,2),new_mol.SubImg(1,2));
+                mol_dat.SubImg(2,1) = max(mol_dat.SubImg(2,1),new_mol.SubImg(2,1));
+                mol_dat.SubImg(2,2) = max(mol_dat.SubImg(2,2),new_mol.SubImg(2,2));
+                %update pixel list
+                mol_dat.PixelIdxList = [mol_dat.PixelIdxList;new_mol.PixelIdxList];
+                %Add segments
+                mol_dat.Segment = [mol_dat.Segment,new_mol.Segment];
+            end
+            
+            %remove merged molecules
+            mol_list(ind) = [];
+            this.data.MoleculeData(mol_list) = [];
+            
+            %store in lowest index
+            this.data.MoleculeData(new_idx) = mol_data;
+            
+            
+            %% notify data listeners
+            this.notify('DataChanged');
+            
+            %% notify save listeners
             wasOutdated = this.dataChangedSinceSave;
             this.dataChangedSinceSave = true;
             if ~wasOutdated
                 %notify
+                this.notify('SaveStatusChanged');
             end
         end
         %% Move Segment to different molecule
         function moveSegmentMolecule(this,src_molecule,src_segments,dest_molecule,dest_seg_index)
             
-            %% notify listeners
+            %create undo buffer
+            this.undoDataBuffer = this.data;
+            this.undoBufferAvailable = true;
+            
+            %move segment
+            this.data.MoleculeData(dest_molecule).Segment = ...
+                [this.data.MoleculeData(dest_molecule).Segment(1:dest_seg_index-1),...
+                 this.data.MoleculeData(src_molecule).Segment(src_segments),...
+                 this.data.MoleculeData(dest_molecule).Segment(dest_seg_index:end)];
+             
+             if src_molecule==dest_molecule
+                 %delete before index
+                 before = src_segments(src_segments<dest_seg_index);
+                 after = src_segments(src_segments>=dest_seg_index)+numel(src_segments);
+                 
+                 this.data.MoleculeData(src_molecule).Segment(before) = [];
+                 this.data.MoleculeData(src_molecule).Segment(after) = [];
+
+             else
+                this.data.MoleculeData(src_molecule).Segment(src_segments) = [];
+             end
+            
+            %% notify data listeners
+            this.notify('DataChanged');
+            
+            %% notify save listeners
             wasOutdated = this.dataChangedSinceSave;
             this.dataChangedSinceSave = true;
             if ~wasOutdated
                 %notify
+                this.notify('SaveStatusChanged');
             end
         end
         
         %% Reorder Segments
         function reorderSegments(this,molecule,new_segment_order)
             
-            %% notify listeners
+            %create undo buffer
+            this.undoDataBuffer = this.data;
+            this.undoBufferAvailable = true;
+            
+            %reorder
+            this.data.MoleculeData(molecule).Segment = this.data.MoleculeData(molecule).Segment(new_segment_order);
+            
+            %% notify data listeners
+            this.notify('DataChanged');
+            
+            %% notify save listeners
             wasOutdated = this.dataChangedSinceSave;
             this.dataChangedSinceSave = true;
             if ~wasOutdated
                 %notify
+                this.notify('SaveStatusChanged');
             end
         end
         %% Remove Segment
         function removeSegment(this,molecule,segments)
-            %% notify listeners
+            
+            %create undo buffer
+            this.undoDataBuffer = this.data;
+            this.undoBufferAvailable = true;
+            
+            %reorder
+            this.data.MoleculeData(molecule).Segment(segments) = [];
+            
+            %% notify data listeners
+            this.notify('DataChanged');
+            
+            %% notify save listeners
             wasOutdated = this.dataChangedSinceSave;
             this.dataChangedSinceSave = true;
             if ~wasOutdated
                 %notify
+                this.notify('SaveStatusChanged');
             end
         end
         %% Add Segment
-        function addSegment(this,molecule,segment_nodes,new_index)
-            %% notify listeners
+        function addSegment(this,molecule,segmentStruct,new_index)
+            %% create undo buffer
+            this.undoDataBuffer = this.data;
+            this.undoBufferAvailable = true;
+            
+            %% Add
+            this.data.MoleculeData(molecule).Segment = ...
+                [this.data.MoleculeData(molecule).Segment(1:new_index-1),...
+                segmentStruct,...
+                this.data.MoleculeData(molecule).Segment(new_index:end)];
+            
+            %% notify data listeners
+            this.notify('DataChanged');
+            %% notify save listeners
             wasOutdated = this.dataChangedSinceSave;
             this.dataChangedSinceSave = true;
             if ~wasOutdated
                 %notify
+                this.notify('SaveStatusChanged');
             end
         end
         %% Join Segments
         function joinSegments(this,molecule1,segment1,molecule2,segment2,segment1_dir,segment2_dir)
-            %% notify listeners
+            
+            if molecule1==molecue2 && segment1==segment2
+                error('segments must be different');
+            end
+            
+            if nargin<7
+                segment2_dir = 'forward';
+            end
+            if nargin<6
+                segment1_dir = 'forward';
+            end
+            
+            segment1_dir = lower(segment1_dir);
+            segment2_dir = lower(segment2_dir);
+            assert(ismember(segment1_dir,{'forward','reverse'}),'direction must be ''forward'' or ''reverse''');
+            assert(ismember(segment2_dir,{'forward','reverse'}),'direction must be ''forward'' or ''reverse''');
+            
+            del_mol = molecule2;
+            new_index = segment1;
+            del_index = segment2;
+            if molecule1==molecule2
+                new_index = min(segment1,segment2);
+                del_index = max(segment1,segment2);
+            end
+            
+            %% create undo buffer
+            this.undoDataBuffer = this.data;
+            this.undoBufferAvailable = true;
+            
+            %% Join
+            segA = this.data.MoleculeData(molecule1).Segment(segment1);
+            segA.cspline = [];
+            if strcmpi(segment1_dir,'reverse')
+                segA.XY = flipud(segA.XY);
+                segA.CRnodes.X = flipup(segA.CRnodes.X);
+                segA.CRnodes.Y = flipup(segA.CRnodes.Y);
+            end
+            
+            segB = this.data.MoleculeData(molecule2).Segment(segment2);
+            segB.cspline = [];
+            if strcmpi(segment2_dir,'reverse')
+                segB.XY = flipud(segB.XY);
+                segB.CRnodes.X = flipup(segB.CRnodes.X);
+                segB.CRnodes.Y = flipup(segB.CRnodes.Y);
+            end
+            
+            segA.XY = [segA.XY;segB.XY];
+            segA.CRnodes.X = [segA.CRnodes.X;segB.CRnodes.X];
+            segA.CRnodes.Y = [segA.CRnodes.Y;segB.CRnodes.Y];
+            
+            %insert into data
+            this.data.MoleculeData(molecule1).Segment(new_index) = segA;
+            
+            %delete the merged segment
+            this.data.MoleculeData(del_mol).Segment(del_index) = [];
+            
+            %% notify data listeners
+            this.notify('DataChanged');
+            
+            %% notify save listeners
             wasOutdated = this.dataChangedSinceSave;
             this.dataChangedSinceSave = true;
             if ~wasOutdated
                 %notify
+                this.notify('SaveStatusChanged');
             end
         end
-        %% Segment Nodes
-        function nodes = getSegmentNodes(this,molecule,segment)
-        end
-        function setSegmentNodes(this,molecule,segment,nodes)
-            %% notify listeners
-            wasOutdated = this.dataChangedSinceSave;
-            this.dataChangedSinceSave = true;
-            if ~wasOutdated
-                %notify
-            end
-        end
-
+        
     end
     
+    %% data helpers
+    methods
+        function L = segment_length(this,molecule,segments)
+            L = NaN(size(segments));
+            for n=1:numel(segments)
+                X = this.data.MoleculeData(molecule).Segment(segments(n)).CRnodes.X;
+                Y = this.data.MoleculeData(molecule).Segment(segments(n)).CRnodes.Y;
+                [qX,qY] = crspline.CRline(X,Y,500);
+                L(n) = sum(sqrt(diff(qX).^2+diff(qY).^2));
+            end
+        end
+    end
+    
+    %% dependent variables
+    methods
+        function im = get.im_data_flat(this)
+            im = this.data.im_data_flat;
+        end
+        function md = get.MoleculeData(this)
+            md = this.data.MoleculeData;
+        end
+    end
 end
 

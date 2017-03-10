@@ -5,8 +5,16 @@ function img_data = get_NS_img_data(NS_data, scaleFlag)
 % data and return an array of scaled, floating point data. The scaling is
 % likely to be accurate for height data only. See get_NS_file_info.m for
 % information about the NS_data structure variable with file information.
+%
+%   scaleFlag=true, scale data to nm
+%             false, don't scale data
+%
 % David Dunlap, Emory University 2016-09-20
 %%%%%%%%%%%%%%%%%%%%%%%
+
+if nargin<2
+    scaleFlag = true;
+end
 
 fid = fopen(NS_data.name,'rb'); % try to open the file for reading
 [message,errnum] = ferror(fid);
