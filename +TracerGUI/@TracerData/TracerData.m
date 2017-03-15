@@ -10,7 +10,7 @@ classdef TracerData < handle
         
     end
     
-    properties (Access=private)
+    properties (SetAccess=private)
         data;
         % data Structure:
         %  data.ND_data
@@ -49,10 +49,14 @@ classdef TracerData < handle
     
     %% __STRUCTORs
     methods 
-        function this = TracerData(data)
-            if nargin>1 %cTor was passed some data
-                this.loadData(data);
+        function this = TracerData(data,filepath)
+            if nargin<2
+                filepath = [];
+            end
+            if nargin>0 %cTor was passed some data
+                this.loadData(data,filepath);
             else
+                %make an object without data
             end
                 
         end %function TracerData
@@ -65,7 +69,7 @@ classdef TracerData < handle
     %% file operations
     methods
         %% Load
-        function loadData(this,data)
+        function loadData(this,data,filepath)
             
             dataChangedSinceSave = false;
             %% Get and Load data from file
@@ -84,8 +88,13 @@ classdef TracerData < handle
                 LastDir = PathName;
                 data = load(fullfile(PathName,FileName));
             elseif isstruct(data) %struct specified
-                FileName = '';
-                PathName = '';
+                if nargin<3 || isempty(filepath)
+                    FileName = '';
+                    PathName = '';
+                else
+                    [PathName,FileName,ext] = fileparts(filepath);
+                    FileName = [FileName,ext];
+                end
                 dataChangedSinceSave = true;
             elseif ischar(data)
                 [PathName,FileName,ext] = fileparts(data);

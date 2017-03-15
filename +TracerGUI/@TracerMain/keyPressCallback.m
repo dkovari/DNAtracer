@@ -1,2 +1,2 @@
-function keyPressCallback(this,obj,event)
+function keypressCallback(this,obj,event)
 

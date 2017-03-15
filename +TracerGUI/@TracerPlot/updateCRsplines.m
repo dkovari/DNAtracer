@@ -1,22 +1,22 @@
 function updateCRsplines(this)
 %called when splines need to be updated
 
-nMol = numel(this.traceData.MoleculeData);
+nMol = numel(this.traceDataHandler.MoleculeData);
 
 if isempty(this.MoleculeCR)
-    this.MoleculeCR(nMol) = struct('SegCR',[]);
+    this.MoleculeCR(nMol) = struct('SegCR',crspline());
 end
 
 %%
 colors = lines(nMol);
 %% construct crsplines
 for n=1:nMol
-    for j=1:numel(this.traceData.MoleculeData(n).Segment)
-        X = this.traceData.MoleculeData(n).Segment(j).CRnodes.X;
-        Y = this.traceData.MoleculeData(n).Segment(j).CRnodes.Y;
+    for j=numel(this.traceDataHandler.MoleculeData(n).Segment):-1:1
+        X = this.traceDataHandler.MoleculeData(n).Segment(j).CRnodes.X;
+        Y = this.traceDataHandler.MoleculeData(n).Segment(j).CRnodes.Y;
         
         if numel(this.MoleculeCR(n).SegCR) < j
-            this.MoleculeCR(n).SegCR(j) = crspline(X,Y);            
+            this.MoleculeCR(n).SegCR(j) = crspline(X,Y);     
         else
             try
                 this.MoleculeCR(n).SegCR(j).X = X;
@@ -30,11 +30,14 @@ for n=1:nMol
             end
         end
         
-        if ~this.MoleculeCR(n).plotValid
-            plot(this.MoleculeCR(n).SegCR(j),'Parent',this.hAx,'interactive','true','LineProperties',{'color',colors(n,:)});
+        if ~this.MoleculeCR(n).SegCR(j).plotValid()
+            plot(this.MoleculeCR(n).SegCR(j),'Parent',this.hAx,...
+                'interactive',true,...
+                'LineProperties',{'color',colors(n,:),'LineWidth',1.5},...
+                'PointProperties',{'MarkerSize',6,'Marker','s','LineStyle','none','MarkerFaceColor',colors(n,:),'MarkerEdgeColor','none'});
         end
         
-        this.MoleculeCR(n).SegCR(j) = @(~,~) this.uiPlotEditCallback(n,j);
+        this.MoleculeCR(n).SegCR(j).UIeditCallback = @(~,~) this.uiPlotEditCallback(n,j);
     end
 end
 

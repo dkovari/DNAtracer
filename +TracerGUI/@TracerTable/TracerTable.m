@@ -47,6 +47,10 @@ classdef TracerTable < handle
     end
     
     methods
+        selectionCallback(this,h,e);
+    end
+    
+    methods
         dataUpdateCallback(this);
         [data,headers] = makeTableCellData(this);
     end

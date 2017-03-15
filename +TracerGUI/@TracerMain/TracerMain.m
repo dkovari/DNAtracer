@@ -4,10 +4,14 @@ classdef TracerMain < handle
     
     properties
         traceDataHandler %object holding all the processed data
-        selectedMoleculeSegments; %Column1=moleculeID, Column2=segmentID
+        
         
         traceTable;
         tracePlot
+    end
+    
+    properties (SetAccess = private)
+        selectedMoleculeSegments = struct('Molecule',{},'Segment',{}); %Column1=moleculeID, Column2=segmentID
     end
     
     properties %GUI handles
@@ -19,15 +23,19 @@ classdef TracerMain < handle
         hMenu_Save;
     end
     
+    %% Creation/deletion methods
     methods %creation/deletion methods
-        function this = TracerMain(data)
+        function this = TracerMain(data,filepath)
             
             if nargin<1
                 data = [];
             end
+            if nargin<2
+                filepath = [];
+            end
             
             %% create data handler
-            this.traceDataHandler = TracerGUI.TracerData(data);
+            this.traceDataHandler = TracerGUI.TracerData(data,filepath);
             
             %% associate event listeners
             addlistener(this.traceDataHandler,'SaveStatusChanged',@(~,~)this.saveStateChangeCallback);
@@ -37,11 +45,11 @@ classdef TracerMain < handle
             
             %% Create table of traces
             this.traceTable = TracerGUI.TracerTable(this);
-            this.traceTable.showFigure(this);
+            this.traceTable.showFigure();
             
             %% Create plot of traces
             this.tracePlot = TracerGUI.TracerPlot(this);
-            this.tracePlot.showFigure(this);
+            this.tracePlot.showFigure();
             
             
         end
@@ -89,7 +97,7 @@ classdef TracerMain < handle
                 answer = questdlg('Save file before exiting?','Save?','Yes','No','Cancel','Yes');
             if strcmp(answer,'Cancel')
                 return;
-            elseif strcmp(anwer,'Yes')
+            elseif strcmp(answer,'Yes')
                 this.saveFile(this);
             end
             end
@@ -99,10 +107,12 @@ classdef TracerMain < handle
     
     %% Event Callbacks
     methods
-        keyPressCallback(this,obj,event)
+        keypressCallback(this,obj,event)
         function saveStateChangeCallback(this)
             set(this.hMenu_Save,'Enable',tf_2_on_off(this.traceDataHandler.dataChangedSinceSave));
         end
+        selecedMoleculeChangedViaTable(this,Molecules,Segments);
+        
     end
 end
 

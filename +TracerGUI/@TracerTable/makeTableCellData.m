@@ -3,15 +3,15 @@ function [data,headers] = makeTableCellData(this)
 headers = {'Molecule','Segment','Length','Cumulative Length'};
 
 nRows = 0;
-for n=1:numel(this.traceDataHandler.data.MoleculeData)
-    nRows=nRows+numel(this.traceDataHandler.data.MoleculeData(n).Segment);
+for n=1:numel(this.traceDataHandler.MoleculeData)
+    nRows=nRows+numel(this.traceDataHandler.MoleculeData(n).Segment);
 end
 
 data = cell(nRows,4);
 row = 0;
-for n=1:numel(this.traceDataHandler.data.MoleculeData)
+for n=1:numel(this.traceDataHandler.MoleculeData)
     CumLength = 0;
-    for j=1:numel(this.traceDataHandler.data.MoleculeData(n).Segment)
+    for j=1:numel(this.traceDataHandler.MoleculeData(n).Segment)
         row=row+1;
         
         data{row,1} = num2str(n);

@@ -94,6 +94,11 @@ classdef crspline < matlab.mixin.SetGet
     
     methods %creator destructor
         function this = crspline(X,Y,varargin)
+            
+            if nargin<2
+                X=[];
+                Y = [];
+            end
 
             p=inputParser;
             p.CaseSensitive=false;
@@ -286,7 +291,7 @@ classdef crspline < matlab.mixin.SetGet
             this.UIeditCallback = fcn;
         end
         function b = plotValid(this)
-            b=ishghandle(this.hLine)&&~isempty(this.hLine);
+            b=~isempty(this.hLine)&&ishghandle(this.hLine);
         end
         function hl = LineHandle(this)
             hl = this.hLine;

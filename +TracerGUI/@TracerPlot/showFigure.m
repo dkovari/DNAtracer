@@ -11,13 +11,14 @@ end
 %% Create Figure
 hFig = figure('Name',['AFM Traces: ',this.traceDataHandler.saveFileName],...
     'MenuBar','none',...
+    'ToolBar','figure',...
     'NumberTitle','off',...
     'KeyPressFcn',@(h,e) this.keypressCallback(h,e));
 movegui(hFig,'center');
 this.hFig=hFig;
 
 %% create axes
-this.hAx = hFig.CurrentAxes;
+this.hAx = axes(hFig);
 
 %% Try to load colormap
 try

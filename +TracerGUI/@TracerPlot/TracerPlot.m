@@ -12,7 +12,7 @@ classdef TracerPlot < handle
         cmap
         hCB
         
-        MoleculeCR; %struct holding CRspline handles
+        MoleculeCR=struct('SegCR',{}); %struct holding CRspline handles
         
         saveNameListener; %listener for changes to file name
         dataChangeListener;
@@ -56,7 +56,9 @@ classdef TracerPlot < handle
     %% others
     methods
         hFig = showFigure(this);
-        updateFigureName(this,h,e);
+        function updateFigureName(this,~,~)
+            this.hFig.Name = ['AFM Traces: ',this.traceDataHandler.saveFileName];
+        end
         updateCRsplines(this)
         uiPlotEditCallback(this,mol_id,seg_id);
         setSelectedCRsplines(this);

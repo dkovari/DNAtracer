@@ -1,4 +1,4 @@
-function TraceData = DNAtracer(filename,varargin)
+function [TraceData,PathName,FileName] = DNAtracer(filename,varargin)
 % DNAtracer - Trace DNA molecules in an AFM image
 %
 % Input:
