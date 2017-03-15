@@ -18,7 +18,9 @@ movegui(hFig,'center');
 this.hFig=hFig;
 
 %% create axes
-this.hAx = axes(hFig);
+this.hAx = axes(hFig,'Position',[.01,.01,.98,.98]);
+
+
 
 %% Try to load colormap
 try
@@ -40,6 +42,8 @@ set(this.hAx,'XTick',[],'YTick',[],'Box','off');
 %% colorbar
 this.hCB = colorbar(this.hAx,'eastoutside');
 this.hCB.Label.String = 'Height [nm]';
+this.hCB.Label.FontSize = 16;
+this.hCB.FontSize = 14;
 
 %% hold on
 hold(this.hAx,'on');

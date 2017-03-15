@@ -13,7 +13,7 @@ classdef TracerData < handle
     properties (SetAccess=private)
         data;
         % data Structure:
-        %  data.ND_data
+        %  data.NS_data
         %       .im_data
         %       .im_data_flat
         %       .im_flat
@@ -116,6 +116,13 @@ classdef TracerData < handle
             this.saveFileName = FileName;
             this.saveFileDir = PathName;
             
+            %% notify data listeners
+            this.notify('DataChanged');
+            
+            %% notify listeners
+            this.dataChangedSinceSave = false;
+            this.notify('SaveStatusChanged');
+
         end
         %% Save
         function saveData(this,filepath)
@@ -143,7 +150,8 @@ classdef TracerData < handle
             end
             
             %Save
-            save(fullfile(this.saveFileDir,this.saveFilePath),'-mat','-struct',this.data);
+            data = this.data;
+            save(fullfile(this.saveFileDir,this.saveFileName),'-mat','-struct','data');
             
             wasOutdated = this.dataChangedSinceSave;
             this.dataChangedSinceSave = false;
@@ -151,6 +159,7 @@ classdef TracerData < handle
             %% notify listeners
             if wasOutdated
                 %notify listeners
+                this.notify('SaveStatusChanged');
             end
         end
         %% SaveAs
@@ -182,12 +191,13 @@ classdef TracerData < handle
             end
             
             %Save
-            save(fullfile(this.saveFileDir,this.saveFilePath),'-mat','-struct',this.data);
+            data = this.data;
+            save(fullfile(this.saveFileDir,this.saveFileName),'-mat','-struct','data');
 
             this.dataChangedSinceSave = false;
             
             %% notify listeners, even if data hasn't changed, because we changed the file
-
+            this.notify('SaveStatusChanged');
         end
     end
     
@@ -329,28 +339,50 @@ classdef TracerData < handle
             end
         end
         %% Move Segment to different molecule
-        function moveSegmentMolecule(this,src_molecule,src_segments,dest_molecule,dest_seg_index)
+        function moveSegmentMolecule(this,SrcList,Dest)%src_molecule,src_segments,dest_molecule,dest_seg_index)
+            
+            if numel(Dest)>1
+                error('Can only move to a single location index');
+            end
+            
+            %check that we are actually moving something
+            if numel(SrcList)==1 && SrcList.Molecule==Dest.Molecule && SrcList.Segment==Dest.Segment
+                return;
+            end
+            
+            
             
             %create undo buffer
             this.undoDataBuffer = this.data;
             this.undoBufferAvailable = true;
             
             %move segment
-            this.data.MoleculeData(dest_molecule).Segment = ...
-                [this.data.MoleculeData(dest_molecule).Segment(1:dest_seg_index-1),...
-                 this.data.MoleculeData(src_molecule).Segment(src_segments),...
-                 this.data.MoleculeData(dest_molecule).Segment(dest_seg_index:end)];
+            for n=numel(SrcList):-1:1
+                newBlock(n) = this.data.MoleculeData(SrcList(n).Molecule).Segment(SrcList(n).Segment);
+            end
+            this.data.MoleculeData(Dest.Molecule).Segment = ...
+                [this.data.MoleculeData(Dest.Molecule).Segment(1:Dest.Segment-1),...
+                 newBlock,...
+                 this.data.MoleculeData(Dest.Molecule).Segment(Dest.Segment:end)];
              
-             if src_molecule==dest_molecule
-                 %delete before index
-                 before = src_segments(src_segments<dest_seg_index);
-                 after = src_segments(src_segments>=dest_seg_index)+numel(src_segments);
+             %% clear originals
+             nSeg = numel(SrcList);
+             for n=1:numel(this.data.MoleculeData)
                  
-                 this.data.MoleculeData(src_molecule).Segment(before) = [];
-                 this.data.MoleculeData(src_molecule).Segment(after) = [];
-
-             else
-                this.data.MoleculeData(src_molecule).Segment(src_segments) = [];
+                 ind = find([SrcList.Molecule]==n);
+                 
+                 if n~=Dest.Molecule
+                     this.data.MoleculeData(n).Segment([SrcList(ind).Segment]) = [];
+                 else
+                     Segs = [SrcList(ind).Segment];
+                     before = Segs(Segs<Dest.Segment);
+                     after = Segs(Segs>=Dest.Segment)+nSeg;
+                     
+                     this.data.MoleculeData(n).Segment(before) = [];
+                     this.data.MoleculeData(n).Segment(after) = [];
+                 end
+                 
+                 SrcList(ind) = [];
              end
             
             %% notify data listeners
@@ -387,14 +419,29 @@ classdef TracerData < handle
             end
         end
         %% Remove Segment
-        function removeSegment(this,molecule,segments)
+        function removeSegment(this,SegList)
             
             %create undo buffer
             this.undoDataBuffer = this.data;
             this.undoBufferAvailable = true;
             
-            %reorder
-            this.data.MoleculeData(molecule).Segment(segments) = [];
+            %% Delete segments
+            
+            for n=1:max([SegList.Molecule])
+                Segs = [SegList([SegList.Molecule]==n).Segment];
+                
+                %remove from data
+                this.data.MoleculeData(n).Segment(Segs) = [];
+            end
+            
+            %% remove empty molecules
+            for n=numel(this.data.MoleculeData):-1:1
+                if isempty(this.data.MoleculeData(n).Segment)
+                    this.data.MoleculeData(n) = [];
+                end
+            end
+                
+            
             
             %% notify data listeners
             this.notify('DataChanged');
@@ -499,6 +546,71 @@ classdef TracerData < handle
             end
         end
         
+        %% split segment
+        function splitSegment(this,molecule,segment,NodeIndex,x,y)
+            %create undo buffer
+            this.undoDataBuffer = this.data;
+            this.undoBufferAvailable = true;
+            
+            %% split
+            seg = this.data.MoleculeData(molecule).Segment(segment);
+            
+            seg.XY = [];
+            seg.cspline = [];
+            
+            seg2 = seg;
+            seg2.XY(1:NodeIndex,:) = [];
+            
+            seg.XY(NodeIndex+1:end,:) = [];
+            
+            seg.XY = [seg.XY;x,y];
+            seg2.XY = [x,y;seg2.XY];
+            
+            %expand data
+            this.data.MoleculeData(molecule).Segment = [this.data.MoleculeData(molecule).Segment(1:segment-1),...
+                seg,seg2,...
+                this.data.MoleculeData(molecule).Segment(segment+1:end)];
+            
+            %% notify data listeners
+            this.notify('DataChanged');
+            
+            %% notify save listeners
+            wasOutdated = this.dataChangedSinceSave;
+            this.dataChangedSinceSave = true;
+            if ~wasOutdated
+                %notify
+                this.notify('SaveStatusChanged');
+            end
+        end
+        
+        %% set segment node data
+        function setSegmentNodes(this,mol,seg,X,Y)
+            %check that there is data
+            if isempty(this.data)
+                return;
+            end
+            %create undo buffer
+            this.undoDataBuffer = this.data;
+            this.undoBufferAvailable = true;
+            
+            %% set data
+            
+            this.data.MoleculeData(mol).Segment(seg).CRnodes.X = X;
+            this.data.MoleculeData(mol).Segment(seg).CRnodes.Y = Y;
+            
+            
+            %% notify data listeners
+            this.notify('DataChanged');
+            
+            %% notify save listeners
+            wasOutdated = this.dataChangedSinceSave;
+            this.dataChangedSinceSave = true;
+            if ~wasOutdated
+                %notify
+                this.notify('SaveStatusChanged');
+            end
+            
+        end
     end
     
     %% data helpers
@@ -511,6 +623,9 @@ classdef TracerData < handle
                 [qX,qY] = crspline.CRline(X,Y,500);
                 L(n) = sum(sqrt(diff(qX).^2+diff(qY).^2));
             end
+            
+            L = L*this.NS_data.width*1000/this.NS_data.columns; %convert to nm
+            
         end
     end
     
@@ -521,6 +636,9 @@ classdef TracerData < handle
         end
         function md = get.MoleculeData(this)
             md = this.data.MoleculeData;
+        end
+        function NS_data = get.NS_data(this)
+            NS_data = this.data.NS_data;
         end
     end
 end

@@ -1,6 +1,6 @@
 function [data,headers] = makeTableCellData(this)
 
-headers = {'Molecule','Segment','Length','Cumulative Length'};
+headers = {'Molecule','Segment','Length [nm]','Cumulative Length [nm]'};
 
 nRows = 0;
 for n=1:numel(this.traceDataHandler.MoleculeData)

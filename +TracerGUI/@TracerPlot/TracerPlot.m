@@ -12,6 +12,15 @@ classdef TracerPlot < handle
         cmap
         hCB
         
+        colorGen = @(n) lines(n);
+        DEFAULT_LINE_WIDTH = 1.5;
+        DEFAULT_MARKER_SIZE = 6;
+        SELECTED_LINE_WIDTH = 2.5;
+        SELECTED_LINE_STYLE = '-.';
+        SELECTED_LINE_COLOR = 'r';
+        SELECTED_MARKER_SIZE = 8;
+        SELECTED_MARKER_COLOR = 'r';
+        
         MoleculeCR=struct('SegCR',{}); %struct holding CRspline handles
         
         saveNameListener; %listener for changes to file name
@@ -24,6 +33,7 @@ classdef TracerPlot < handle
             this.mainController = mainController;
             this.traceDataHandler = mainController.traceDataHandler;
             
+            %% associate data change event listeners
             this.saveNameListener = addlistener(this.traceDataHandler,'saveFileName','PostSet',@(h,e) this.updateFigureName(h,e));
             this.dataChangeListener = addlistener(this.traceDataHandler,'DataChanged',@(~,~) this.updateCRsplines);
             

@@ -21,10 +21,10 @@ this.hFig=hFig;
 
 %create context menu for table
 hCtx = uicontextmenu(hFig);
-uimenu(hCtx,'Label','Insert New Segment','Callback',@(~,~)this.insertNewSegment);
+uimenu(hCtx,'Label','Insert New Segment Before','Callback',@(~,~)this.insertNewSegment);
 uimenu(hCtx,'Label','Delete Selected','Callback',@(~,~) this.deleteSelected);
-uimenu(hCtx,'Label','Merge Selected','Callback',@(~,~) this.mergeSelectedSegments);
-uimenu(hCtx,'Label','Split Segment','Callback',@(~,~) this.splitSelectedSegment);
+this.hMenu_Merge = uimenu(hCtx,'Label','Merge Selected','Callback',@(~,~) this.mergeSelectedSegments);
+this.hMenu_Split = uimenu(hCtx,'Label','Split Segment','Callback',@(~,~) this.splitSelectedSegment);
 
 [data,headers] = this.makeTableCellData;
 
@@ -36,6 +36,7 @@ gTable = uiextras.gTable.Table(...
     'ColumnFormat',{'char','char','float','float'},...
     'ColumnEditable',[false,false,false,false],...
     'ColumnResizePolicy','last',...
+    'SelectionMode','discontiguous',...
     'DraggableRows',true,...
     'UIContextMenu',hCtx);
 

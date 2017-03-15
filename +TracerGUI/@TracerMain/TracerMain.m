@@ -5,7 +5,6 @@ classdef TracerMain < handle
     properties
         traceDataHandler %object holding all the processed data
         
-        
         traceTable;
         tracePlot
     end
@@ -23,6 +22,11 @@ classdef TracerMain < handle
         hMenu_Save;
     end
     
+    %% Event listeners
+    properties(Access=private)
+        saveNameListener;
+    end
+    
     %% Creation/deletion methods
     methods %creation/deletion methods
         function this = TracerMain(data,filepath)
@@ -38,22 +42,35 @@ classdef TracerMain < handle
             this.traceDataHandler = TracerGUI.TracerData(data,filepath);
             
             %% associate event listeners
-            addlistener(this.traceDataHandler,'SaveStatusChanged',@(~,~)this.saveStateChangeCallback);
+            this.saveNameListener = addlistener(this.traceDataHandler,'saveFileName','PostSet',@(~,~) this.updateFigureName);
+            addlistener(this.traceDataHandler,'SaveStatusChanged',@(~,~) this.saveStateChangeCallback);
             
             %% Create Main Menu
             this.hMainFig = this.showMainFig();
+            
+            %% Create Data manipulation objects
+            % Note: object will associate event listeners with the
+            % dataChange event thrown by traceDataHandler. Create the
+            % objects in reverse-order of callback execution.
+            
+            %% Create plot of traces
+            %Since plotting is the slowest, create the plot first so that
+            %the other callbacks appear to respond more naturally
+            this.tracePlot = TracerGUI.TracerPlot(this);
+            this.tracePlot.showFigure();
             
             %% Create table of traces
             this.traceTable = TracerGUI.TracerTable(this);
             this.traceTable.showFigure();
             
-            %% Create plot of traces
-            this.tracePlot = TracerGUI.TracerPlot(this);
-            this.tracePlot.showFigure();
-            
             
         end
         function delete(this)
+            try
+                delete(this.saveNameListener);
+            catch
+            end
+            
             try
                 delete(this.hMainFig);
             catch
@@ -79,18 +96,18 @@ classdef TracerMain < handle
             answer = questdlg('Save current data before opening new file?','Save?','Yes','No','Cancel','Yes');
             if strcmp(answer,'Cancel')
                 return;
-            elseif strcmp(anwer,'Yes')
-                this.saveFileAs(this);
+            elseif strcmp(answer,'Yes')
+                this.saveFileAs();
             end
 
             %open new data handler
             this.traceDataHandler.loadData();
         end
         function saveFile(this)
-            this.traceDataHandler.saveFile();
+            this.traceDataHandler.saveData();
         end
         function saveFileAs(this)
-            this.traceDataHandler.saveFileAs();
+            this.traceDataHandler.saveDataAs();
         end
         function closeFile(this)
             if this.traceDataHandler.dataChangedSinceSave
@@ -104,13 +121,27 @@ classdef TracerMain < handle
             delete(this);
         end
     end
-    
+    %% Window menu
+    methods
+        showTraceTable(this);
+        showTracePlot(this);
+    end
     %% Event Callbacks
     methods
-        keypressCallback(this,obj,event)
+        function updateFigureName(this)
+            try
+                this.hMainFig.Name = ['AFM Traces: ',this.traceDataHandler.saveFileName];
+            catch
+            end
+        end
+        
+        keypressCallback(this,obj,event);
+        
         function saveStateChangeCallback(this)
+            %'Save State Changed'
             set(this.hMenu_Save,'Enable',tf_2_on_off(this.traceDataHandler.dataChangedSinceSave));
         end
+        
         selecedMoleculeChangedViaTable(this,Molecules,Segments);
         
     end

@@ -8,6 +8,8 @@ classdef TracerTable < handle
         hFig
         gTable
         dataChangeListener;
+        hMenu_Split;
+        hMenu_Merge;
     end
     
     %% __structors
