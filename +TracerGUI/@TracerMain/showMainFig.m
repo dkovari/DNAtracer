@@ -43,6 +43,12 @@ uimenu(hMenu_File,...
     'Label','Close',...
     'Callback',@(~,~) this.closeFile);
 
+%Edit menu
+hMenu_Edit = uimenu(hFig,'Label','Edit');
+
+this.hMenu_Undo = uimenu(hMenu_Edit,'Label','Undo',...
+    'Callback',@(~,~)this.undoDataChange(),'Accelerator','z');
+
 %Windows menu
 hMenu_Win = uimenu(hFig,'Label','Windows');
 uimenu(hMenu_Win,'Label','Molecule List', 'Callback',@(~,~)this.showTraceTable());

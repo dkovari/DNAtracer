@@ -2,6 +2,10 @@ function deleteSelected(this)
 
 SelectRows = this.gTable.SelectedRows;
 
+if isempty(SelectRows)
+    return;
+end
+
 %% Get actual source rows
 for n=numel(SelectRows):-1:1
     Src_Act(n) = this.gTable.getActualRow(SelectRows(n)-1);

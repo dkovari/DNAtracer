@@ -559,12 +559,20 @@ classdef TracerData < handle
             seg.cspline = [];
             
             seg2 = seg;
-            seg2.XY(1:NodeIndex,:) = [];
             
-            seg.XY(NodeIndex+1:end,:) = [];
+            %disp(seg2.CRnodes)
             
-            seg.XY = [seg.XY;x,y];
-            seg2.XY = [x,y;seg2.XY];
+            seg2.CRnodes.X(1:NodeIndex,:) = [];
+            seg2.CRnodes.Y(1:NodeIndex,:) = [];
+            
+            seg.CRnodes.X(NodeIndex+1:end,:) = [];
+            seg.CRnodes.Y(NodeIndex+1:end,:) = [];
+            
+            seg.CRnodes.X = [seg.CRnodes.X;x];
+            seg.CRnodes.Y = [seg.CRnodes.Y;y];
+            
+            seg2.CRnodes.X = [x;seg2.CRnodes.X];
+            seg2.CRnodes.Y = [y;seg2.CRnodes.Y];
             
             %expand data
             this.data.MoleculeData(molecule).Segment = [this.data.MoleculeData(molecule).Segment(1:segment-1),...

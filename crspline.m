@@ -219,7 +219,10 @@ classdef crspline < matlab.mixin.SetGet
             else %user did not specify s_Data just plot all data
                 [qX,qY] = crspline.CRline(this.pltX,this.pltY,100,this.Tension);
             end
-
+            
+            hPts = gobjects(0);
+            %hLine = gobjects(0);
+            
             %plot the line
             if isempty(p.Results.LineProperties)
                 hLine = plot(qX,qY,'parent',this.hAx,p.Unmatched);
@@ -493,7 +496,7 @@ classdef crspline < matlab.mixin.SetGet
                 Y = [Y;Y(end)];
             end
 
-            [qX,qY] = crspline.CR(X(n:n+3),Y(n:n+3),linspace(0.05,0.95,100),T);
+            [qX,qY] = crspline.CR(X(n:n+3),Y(n:n+3),linspace(0.01,0.99,100),T);
 
         end
 

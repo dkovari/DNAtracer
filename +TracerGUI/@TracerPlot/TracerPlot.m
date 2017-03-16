@@ -72,6 +72,9 @@ classdef TracerPlot < handle
         updateCRsplines(this)
         uiPlotEditCallback(this,mol_id,seg_id);
         setSelectedCRsplines(this);
+        keypressCallback(this,h,e);
+        splitSegment(this,Molecule,Segment);
+        mergeSegments(this,SegList)
     end
     
 end

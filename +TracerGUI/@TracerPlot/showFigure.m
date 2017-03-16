@@ -20,8 +20,6 @@ this.hFig=hFig;
 %% create axes
 this.hAx = axes(hFig,'Position',[.01,.01,.98,.98]);
 
-
-
 %% Try to load colormap
 try
     cmap_file = fullfile(fileparts(mfilename('fullpath')), 'ZV_cmap.mat');

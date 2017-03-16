@@ -20,6 +20,7 @@ classdef TracerMain < handle
     %% main figure menu hghandles
     properties(Access=private)
         hMenu_Save;
+        hMenu_Undo;
     end
     
     %% Event listeners
@@ -44,6 +45,7 @@ classdef TracerMain < handle
             %% associate event listeners
             this.saveNameListener = addlistener(this.traceDataHandler,'saveFileName','PostSet',@(~,~) this.updateFigureName);
             addlistener(this.traceDataHandler,'SaveStatusChanged',@(~,~) this.saveStateChangeCallback);
+            addlistener(this.traceDataHandler,'undoBufferAvailable','PostSet',@(~,~) this.updateUndoAvailable());
             
             %% Create Main Menu
             this.hMainFig = this.showMainFig();
@@ -126,6 +128,10 @@ classdef TracerMain < handle
         showTraceTable(this);
         showTracePlot(this);
     end
+    %% Inter-GUI Data operations
+    methods
+        splitSegment(this,Mol,Seg);
+    end
     %% Event Callbacks
     methods
         function updateFigureName(this)
@@ -137,12 +143,25 @@ classdef TracerMain < handle
         
         keypressCallback(this,obj,event);
         
+        function updateUndoAvailable(this)
+            if this.traceDataHandler.undoBufferAvailable
+                this.hMenu_Undo.Enable='on';
+            else
+                this.hMenu_Undo.Enable='off';
+            end
+            
+        end
+        
         function saveStateChangeCallback(this)
             %'Save State Changed'
             set(this.hMenu_Save,'Enable',tf_2_on_off(this.traceDataHandler.dataChangedSinceSave));
         end
         
         selecedMoleculeChangedViaTable(this,Molecules,Segments);
+        
+        function undoDataChange(this)
+            this.traceDataHandler.undoLastOp();
+        end
         
     end
 end

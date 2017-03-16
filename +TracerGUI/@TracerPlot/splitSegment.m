@@ -10,24 +10,28 @@ for n=1:numel(this.MoleculeCR)
         end
     end     
 end
-this.MoleculeCR(1:end) = [];
+this.MoleculeCR(1:end) = []; 
 
 
 %% Draw CR Spline for current segment
 X = this.traceDataHandler.MoleculeData(Molecule).Segment(Segment).CRnodes.X;
 Y = this.traceDataHandler.MoleculeData(Molecule).Segment(Segment).CRnodes.Y;
-CR = crspline(X,Y);
 
-hLine = plot(CR,'Parent',this.hAx,...
-                'interactive',true,...
-                'LineProperties',{'color',this.SELECTED_LINE_COLOR,...
-                                    'LineWidth',this.DEFAULT_LINE_WIDTH});
-hLine.HitTest = 'off';
+% hLine = plot(CR,'Parent',this.hAx,...
+%                 'interactive',false,...
+%                 'LineProperties',{'color',this.SELECTED_LINE_COLOR,...
+%                                     'LineWidth',this.DEFAULT_LINE_WIDTH});
+% hLine.HitTest = 'off';
 %% make hidden hit-testing segments
-hSeg = gobjects(numel(this.pX)-1,1);
+hSeg = gobjects(numel(X)-1,1);
 for n = 1:numel(X)-1
-    [qX,qY] = crspline.CRseg(X,X,n);
-    hSeg(n) = line(qX,qY,'visible','off','pickableparts','all','ButtonDownFcn',@LineClick);
+    [qX,qY] = crspline.CRseg(X,Y,n);
+    hSeg(n) = line(qX,qY,...
+        'parent',this.hAx,...
+        'pickableparts','all',...
+        'ButtonDownFcn',@LineClick,...
+        'color',this.SELECTED_LINE_COLOR,...
+        'LineWidth',this.SELECTED_LINE_WIDTH);
     setappdata(hSeg(n),'SegID',n);
 end
                                 
@@ -35,6 +39,10 @@ end
 BreakPt_X = NaN;
 BreakPt_Y = NaN;
 NodeIndex = NaN;
+
+STATUS = 'hold';
+
+orig_UD = this.hAx.UserData;
                                 
 %% Set the cursor
 
@@ -48,8 +56,21 @@ hFig.PointerShapeCData = cursor;
 hFig.PointerShapeHotSpot = [16,16];
 hFig.Pointer = 'custom';
 
-%% Change line callback
-hLine.UserData = 'wait';
+%% Create Message Label
+hTxt = uicontrol(hFig,...
+    'Style','text',...
+    'String','Choose location to break highlighted segment. Press Esc to cancel.',...
+    'FontSize',16,...
+    'Units','points',...
+    'Position',[5,5,16*63/2,16],...
+    'HorizontalAlignment','center',...
+    'BackgroundColor',[1,1,1]);
+
+%% Change callbacks and userdata
+this.hAx.UserData = 'wait';
+orig_KeyCB = hFig.KeyPressFcn;
+
+hFig.KeyPressFcn = @KeyPress;
 
 
 %% Callbacks
@@ -60,28 +81,38 @@ hLine.UserData = 'wait';
         
         NodeIndex = getappdata(h,'SegID');
         BreakPt_X = e.IntersectionPoint(1);
-        BreakPt_Y = e.IntersectionPoint(1);
-        hLine.UserData = 'clicked';
+        BreakPt_Y = e.IntersectionPoint(2);
+        STATUS = 'clicked';
+        this.hAx.UserData = 'continue';
     end
 
-    function KeyPress(h,e)
-        hLine.UserData = 'canceled';
+    function KeyPress(~,e)
+        if strcmp(e.Key,'escape')
+            STATUS = 'canceled';
+            this.hAx.UserData = 'continue';
+        end
     end
+
 %% wait 
-waitfor(hLine,'UserData');
-UD = hLine.UserData;
+waitfor(this.hAx,'UserData','continue');
+
+this.hAx.UserData = orig_UD;
 try
-delete(hLine);
 delete(hSeg)
+delete(hTxt);
 catch
 end
+
+hFig.KeyPressFcn = orig_KeyCB;
 
 %% Clean Up
 hFig.Pointer = 'arrow';
 %% process
-if strcmp(UD,'clicked')
-    this.traceDataHandler.splitSegment(this,Molecule,Segment,NodeIndex,BreakPt_X,BreakPt_Y); %changes data, throws datachange event
+if strcmp(STATUS,'clicked')
+    %'in click proc'
+    this.traceDataHandler.splitSegment(Molecule,Segment,NodeIndex,BreakPt_X,BreakPt_Y); %changes data, throws datachange event
 else
+    %'else'
     this.updateCRsplines();
 end
 
