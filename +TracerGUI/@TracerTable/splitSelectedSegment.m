@@ -13,7 +13,6 @@ if Src_Act==-1
 end
 
 %% Row index to molecule index
-
 Molecule = str2num(Data{Src_Act+1,1});
 Segment = str2num(Data{Src_Act+1,2});
 

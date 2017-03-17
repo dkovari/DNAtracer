@@ -21,9 +21,10 @@ this.hFig=hFig;
 
 %create context menu for table
 hCtx = uicontextmenu(hFig);
-uimenu(hCtx,'Label','Insert New Segment Before','Callback',@(~,~)this.insertNewSegmentBefore);
-uimenu(hCtx,'Label','Insert New Segment After','Callback',@(~,~)this.insertNewSegmentAfter);
-uimenu(hCtx,'Label','Delete Selected','Callback',@(~,~) this.deleteSelected);
+uimenu(hCtx,'Label','Create New Molecule','Callback',@(~,~) this.createNewMolecule);
+uimenu(hCtx,'separator','on','Label','Insert New Segment Before','Callback',@(~,~)this.insertNewSegmentBeforeSelected);
+uimenu(hCtx,'Label','Insert New Segment After','Callback',@(~,~)this.insertNewSegmentAfterSelected);
+uimenu(hCtx,'separator','on','Label','Delete Selected','Callback',@(~,~) this.deleteSelected);
 this.hMenu_Merge = uimenu(hCtx,'Label','Merge Selected','Callback',@(~,~) this.mergeSelectedSegments);
 this.hMenu_Split = uimenu(hCtx,'Label','Split Segment','Callback',@(~,~) this.splitSelectedSegment);
 

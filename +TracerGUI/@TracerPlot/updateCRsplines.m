@@ -18,6 +18,11 @@ for n=nMol+1:numel(this.MoleculeCR)
 end
 this.MoleculeCR(nMol+1:end) = [];
 
+%% Create extra MoleculeCR if we've added new molecules
+if nMol>numel(this.MoleculeCR)
+    this.MoleculeCR(nMol) = struct('SegCR',crspline());
+end
+
 %%
 colors = this.colorGen(nMol);%lines(nMol);
 %% construct crsplines

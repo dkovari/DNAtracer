@@ -225,19 +225,47 @@ classdef TracerData < handle
             end
             
         end
-        %% Remove Molecule
-        function removeMolecule(this,mol_id)
-            %check that there is data
-            if isempty(this.data)
-                return;
+        
+        %% insert new segment
+        function insertSegment(this,SegList,SegData)
+            %insert new segment data
+            %SegList specifies insert locations
+            %SegData is struc array holding the new data
+            
+            %% verify data
+            if numel(SegList)~= numel(SegData)
+                error('SegList and SegData must be same size');
             end
-            %create undo buffer
+            %% create undo buffer
             this.undoDataBuffer = this.data;
             this.undoBufferAvailable = true;
             
-            
-            %delete
-            this.data.MoleculeData(mol_id) = [];
+            %% insert data
+            for n=min([SegList.Molecule]):max([SegList.Molecule])
+                ind = find(n==[SegList.Molecule]);
+                if ~isempty(ind)
+                    if n>numel(this.data.MoleculeData)
+                        this.data.MoleculeData(n).Segment = struct('XY',{},'cspline',{},'CRnodes',{});
+                    end
+                    %sort ind by decreasing segment
+                    [~,I] = sort([SegList(ind).Segment],'descend');
+                    ind = ind(I); %shuffle ind to new order
+                    %insert the data
+                    nSeg = numel(this.MoleculeData(n).Segment);
+                    for i = ind
+                        seg = SegList(i).Segment;
+                        
+                        if seg>nSeg
+                            this.data.MoleculeData(n).Segment(seg) = SegData(i);
+                        else
+                            this.data.MoleculeData(n).Segment = ...
+                                [this.data.MoleculeData(n).Segment(1:seg-1),...
+                                SegData(i),...
+                                this.data.MoleculeData(n).Segment(seg:end)];
+                        end
+                    end
+                end
+            end
             
             %% notify data listeners
             this.notify('DataChanged');
@@ -338,9 +366,11 @@ classdef TracerData < handle
                 this.notify('SaveStatusChanged');
             end
         end
-        %% Move Segment to different molecule
-        function moveSegmentMolecule(this,SrcList,Dest)%src_molecule,src_segments,dest_molecule,dest_seg_index)
+        
+        %% Move Segment(s) to different position or molecule
+        function moveSegment(this,SrcList,Dest)%src_molecule,src_segments,dest_molecule,dest_seg_index)
             
+            %% verify inputs
             if numel(Dest)>1
                 error('Can only move to a single location index');
             end
@@ -349,14 +379,12 @@ classdef TracerData < handle
             if numel(SrcList)==1 && SrcList.Molecule==Dest.Molecule && SrcList.Segment==Dest.Segment
                 return;
             end
-            
-            
-            
-            %create undo buffer
+                        
+            %% create undo buffer
             this.undoDataBuffer = this.data;
             this.undoBufferAvailable = true;
             
-            %move segment
+            %% move segment
             for n=numel(SrcList):-1:1
                 newBlock(n) = this.data.MoleculeData(SrcList(n).Molecule).Segment(SrcList(n).Segment);
             end
@@ -397,27 +425,6 @@ classdef TracerData < handle
             end
         end
         
-        %% Reorder Segments
-        function reorderSegments(this,molecule,new_segment_order)
-            
-            %create undo buffer
-            this.undoDataBuffer = this.data;
-            this.undoBufferAvailable = true;
-            
-            %reorder
-            this.data.MoleculeData(molecule).Segment = this.data.MoleculeData(molecule).Segment(new_segment_order);
-            
-            %% notify data listeners
-            this.notify('DataChanged');
-            
-            %% notify save listeners
-            wasOutdated = this.dataChangedSinceSave;
-            this.dataChangedSinceSave = true;
-            if ~wasOutdated
-                %notify
-                this.notify('SaveStatusChanged');
-            end
-        end
         %% Remove Segment
         function removeSegment(this,SegList)
             
@@ -454,86 +461,53 @@ classdef TracerData < handle
                 this.notify('SaveStatusChanged');
             end
         end
-        %% Add Segment
-        function addSegment(this,molecule,segmentStruct,new_index)
+            
+        %% Merge Segments
+        function mergeSegments(this,SegList)
             %% create undo buffer
             this.undoDataBuffer = this.data;
             this.undoBufferAvailable = true;
             
-            %% Add
-            this.data.MoleculeData(molecule).Segment = ...
-                [this.data.MoleculeData(molecule).Segment(1:new_index-1),...
-                segmentStruct,...
-                this.data.MoleculeData(molecule).Segment(new_index:end)];
+            %% Merge
+            NewSegment = this.data.MoleculeData(SegList(1).Molecule).Segment(SegList(1).Segment);
             
-            %% notify data listeners
-            this.notify('DataChanged');
-            %% notify save listeners
-            wasOutdated = this.dataChangedSinceSave;
-            this.dataChangedSinceSave = true;
-            if ~wasOutdated
-                %notify
-                this.notify('SaveStatusChanged');
-            end
-        end
-        %% Join Segments
-        function joinSegments(this,molecule1,segment1,molecule2,segment2,segment1_dir,segment2_dir)
+            NewSegment.XY = [];
+            NewSegment.cspline = [];
             
-            if molecule1==molecue2 && segment1==segment2
-                error('segments must be different');
+            if strcmp(SegList(1).Direction,'reverse')
+                NewSegment.CRnodes.X = flip(NewSegment.CRnodes.X);
+                NewSegment.CRnodes.Y = flip(NewSegment.CRnodes.Y);
             end
             
-            if nargin<7
-                segment2_dir = 'forward';
-            end
-            if nargin<6
-                segment1_dir = 'forward';
-            end
-            
-            segment1_dir = lower(segment1_dir);
-            segment2_dir = lower(segment2_dir);
-            assert(ismember(segment1_dir,{'forward','reverse'}),'direction must be ''forward'' or ''reverse''');
-            assert(ismember(segment2_dir,{'forward','reverse'}),'direction must be ''forward'' or ''reverse''');
-            
-            del_mol = molecule2;
-            new_index = segment1;
-            del_index = segment2;
-            if molecule1==molecule2
-                new_index = min(segment1,segment2);
-                del_index = max(segment1,segment2);
+            for n=2:numel(SegList)
+                X = this.data.MoleculeData(SegList(n).Molecule).Segment(SegList(n).Segment).CRnodes.X; 
+                Y = this.data.MoleculeData(SegList(n).Molecule).Segment(SegList(n).Segment).CRnodes.Y; 
+                if strcmp(SegList(n).Direction,'reverse')
+                    X = flip(X);
+                    Y = flip(Y);
+                end
+                NewSegment.CRnodes.X = [NewSegment.CRnodes.X;X];
+                NewSegment.CRnodes.Y = [NewSegment.CRnodes.Y;Y];
             end
             
-            %% create undo buffer
-            this.undoDataBuffer = this.data;
-            this.undoBufferAvailable = true;
+            %% Set merged data
+            this.data.MoleculeData(SegList(1).Molecule).Segment(SegList(1).Segment) = NewSegment;
             
-            %% Join
-            segA = this.data.MoleculeData(molecule1).Segment(segment1);
-            segA.cspline = [];
-            if strcmpi(segment1_dir,'reverse')
-                segA.XY = flipud(segA.XY);
-                segA.CRnodes.X = flipup(segA.CRnodes.X);
-                segA.CRnodes.Y = flipup(segA.CRnodes.Y);
+            SegList(1) = [];
+            %% Delete other segments
+            for n=1:max([SegList.Molecule])
+                ind = find(n==[SegList.Molecule]);
+                if ~isempty(ind)
+                    seg = [SegList(ind).Segment];
+                    this.data.MoleculeData(n).Segment(seg) = [];
+                end
             end
-            
-            segB = this.data.MoleculeData(molecule2).Segment(segment2);
-            segB.cspline = [];
-            if strcmpi(segment2_dir,'reverse')
-                segB.XY = flipud(segB.XY);
-                segB.CRnodes.X = flipup(segB.CRnodes.X);
-                segB.CRnodes.Y = flipup(segB.CRnodes.Y);
+            %remove empty molecules
+            for n=numel(this.data.MoleculeData):-1:1
+                if isempty(this.data.MoleculeData(n).Segment)
+                    this.data.MoleculeData(n) = [];
+                end
             end
-            
-            segA.XY = [segA.XY;segB.XY];
-            segA.CRnodes.X = [segA.CRnodes.X;segB.CRnodes.X];
-            segA.CRnodes.Y = [segA.CRnodes.Y;segB.CRnodes.Y];
-            
-            %insert into data
-            this.data.MoleculeData(molecule1).Segment(new_index) = segA;
-            
-            %delete the merged segment
-            this.data.MoleculeData(del_mol).Segment(del_index) = [];
-            
             %% notify data listeners
             this.notify('DataChanged');
             

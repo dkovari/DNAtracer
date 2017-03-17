@@ -272,7 +272,10 @@ classdef crspline < matlab.mixin.SetGet
             this.hLine = hLine;
             this.hPts = hPts;
             %move points to top
-            uistack(this.hPts,'top');
+            try
+                uistack(this.hPts,'top');
+            catch
+            end
         end
         
     end
@@ -340,20 +343,22 @@ classdef crspline < matlab.mixin.SetGet
                 set(this.hPts,'xdata',this.pltX,'ydata',this.pltY);
             catch
             end
-            %update hidden segments
-            try
-                delete(this.hSeg);
-            catch
-            end
-            this.hSeg = gobjects(numel(this.pltX)-1,1);
-            for sn = 1:numel(this.pltX)-1
-                [qX,qY] = crspline.CRseg(this.pltX,this.pltY,sn,this.Tension);
-                this.hSeg(sn) = line(qX,qY,'parent',this.hAx,'visible','off','pickableparts','all','ButtonDownFcn',@(h,e) this.AddPt(h,e));
-                setappdata(this.hSeg(sn),'SegID',sn);
-            end
+            if this.InteractivePlot
+                %update hidden segments
+                try
+                    delete(this.hSeg);
+                catch
+                end
+                this.hSeg = gobjects(numel(this.pltX)-1,1);
+                for sn = 1:numel(this.pltX)-1
+                    [qX,qY] = crspline.CRseg(this.pltX,this.pltY,sn,this.Tension);
+                    this.hSeg(sn) = line(qX,qY,'parent',this.hAx,'visible','off','pickableparts','all','ButtonDownFcn',@(h,e) this.AddPt(h,e));
+                    setappdata(this.hSeg(sn),'SegID',sn);
+                end
 
-            %put points back on top
-            uistack(this.hPts,'top');
+                %put points back on top
+                uistack(this.hPts,'top');
+            end
         end
     end
 
@@ -456,14 +461,195 @@ classdef crspline < matlab.mixin.SetGet
         end
     end
     
+    %% Static Methods
+    methods (Static)
+        function [X,Y,CR] = UIdefine(varargin)
+            % define CR-spline graphically
+            % Syntax:
+            %    CR = crspline.UIdefine();
+            %         crspline.UIdefine(num_points);
+            %         crspline.UIdefine(fig/ax,__);
+            %         crspline.UIdefine(__,'Name',Value);
+            % Name,Value Pairs:
+            %   'Parent',hPar: specify figure or axes to use
+            %   'initialXY',[X,Y]: initial points to use.
+            
+            hFig = [];
+            hAx = [];
+            nPoints = Inf;
+            %% handle inputs
+            %check for parent first
+            if ~isempty(varargin) &&~ischar(varargin{1})&&isscalar(varargin{1})&& ishghandle(varargin{1}) && ismember(varargin{1}.Type,{'figure','axes'})
+                if strcmp(varargin{1}.Type,'axes')
+                    hFig = get(varargin{1},'Parent');
+                    hAx = varargin{1};
+                else
+                    hFig = varargin{1};
+                    figure(hFig);
+                    hAx = gca;
+                end
+                varargin{1} = [];
+            end
+            %check for nPoints
+            if ~isempty(varargin) && isnumeric(varargin{1})
+                assert(isscalar(varargin{1}),'Number of points must be scalar');
+                
+                nPoints = varargin{1};
+                varargin{1}=[];
+            end
+            % parse
+            p = inputParser;
+            p.CaseSensitive = false;
+            addParameter(p,'Parent',[],@(x) isempty(x)||ishghandle(x));
+            addParameter(p,'InitialXY',[],@(x) isempty(x)||(ismatrix(x)&&size(x,2)==2));
+            parse(p,varargin{:});
+            if isempty(hAx)
+                Parent = p.Results.Parent;
+                if isempty(Parent)
+                    Parent = gcf;
+                end
+                if strcmp(get(Parent,'Type'),'axes')
+                    hFig = get(Parent,'Parent');
+                    hAx = Parent;
+                else
+                    hFig = Parent;
+                    figure(hFig);
+                    hAx = gca;
+                end
+            end
+            
+            %% store original figure props
+            origFigPropNames = {'KeyPressFcn','WindowButtonDownFcn','WindowButtonUpFcn','WindowButtonMotionFcn','UserData','Pointer'};
+            origFigPropValues = get(hFig,origFigPropNames);
+            wasHold = ishold(hAx);
+            %% Create CR spline
+            if ~isempty(p.Results.InitialXY)
+                X = p.Results.InitialXY(:,1);
+                Y = p.Results.InitialXY(:,2);
+            else
+                X = [];
+                Y = [];
+            end
+            
+            CR = crspline(X,Y);
+            
+            if ~isempty(X)
+                hLine = plot(CR,'Parent',hAx,'Interactive',false);
+                set(hLine,'pickableparts','none');
+                lineOK = true;
+            else
+                hLine = plot(NaN,NaN,'-');
+                set(hLine,'pickableparts','none');
+                lineOK = false;
+            end
+
+            
+            hPoints = line('XData',[X;NaN],...
+                'YData',[Y;NaN],...
+                'Parent',hAx,...
+                'LineStyle','none',...
+                'MarkerSize',8,...
+                'MarkerFaceColor',hLine.Color,...
+                'MarkerEdgeColor','none',...
+                'Marker','s',...
+                'pickableparts','none');
+            
+            %% initial values
+            clickedPoints = 0;
+            hFig.UserData = 'wait';
+            
+            %% Callback functions
+            function MouseDown(~,~)
+                pt = get(hAx, 'CurrentPoint');
+                X = [X;pt(1,1)];
+                Y = [Y;pt(1,2)];
+                CR.X = X;
+                CR.Y = Y;
+                set(hPoints,'xdata',X,'ydata',Y);
+                clickedPoints = clickedPoints + 1;
+                if clickedPoints>nPoints
+                    hFig.UserData = 'continue';
+                end
+                if numel(X)>1 && ~lineOK
+                    hold(hAx,'on');
+                    hLine2 = plot(CR,'Parent',hAx,'color',hLine.Color);
+                    set(hLine2,'pickableparts','none');
+                    lineOK = true;
+                    try
+                    delete(hLine);
+                    catch
+                    end
+                    hLine = hLine2;
+                end
+
+            end
+            function MouseMotion(~,~)
+                pt = get(hAx, 'CurrentPoint');
+                x = pt(1,1);
+                y = pt(1,2);
+                CR.X = [X;x];
+                CR.Y = [Y;y];
+            end
+            function KeyPress(~,e)
+                if strcmp(e.Key,'escape')||strcmp(e.Key,'return')
+                    hFig.UserData = 'continue';
+                end
+            end
+            %% set callbacks
+            hFig.WindowButtonMotionFcn = @MouseMotion;
+            hFig.WindowButtonDownFcn = @MouseDown;
+            hFig.KeyPressFcn = @KeyPress;
+            
+            %% Create message
+            hTxt = uicontrol(hFig,...
+                'Style','text',...
+                'String','Select node locations. Press return when done.',...
+                'FontSize',16,...
+                'Units','points',...
+                'Position',[5,5,16*63/2,24],...
+                'HorizontalAlignment','center',...
+                'BackgroundColor',[1,1,1]);
+            %% Change pointer
+            hFig.Pointer = 'cross';
+            %% wait for continue
+            waitfor(hFig,'UserData','continue');
+            
+            %% Cleanup
+            delete(hTxt);
+            delete(hLine);
+            delete(hPoints);
+            set(hFig,origFigPropNames,origFigPropValues);
+            if wasHold
+                hold(hAx,'on');
+            else
+                hold(hAx,'off');
+            end
+            
+            %% clear CR is not used
+            if nargout<3
+                delete(CR);
+            end
+        end
+        
+    end
+    
+    %% Static Calculations
     methods (Static)
         function [qX,qY] = CRline(X,Y,nPTS,T)
+            %generate xy points for cr line
             if nargin<4
                 T = 0.5;
             end
             if nargin<3
                 nPTS = 100;
             end
+            
+            if isempty(X) || isempty(Y)
+                qX = [];
+                qY = [];
+                return;
+            end
+            
             X = [X(1);X;X(end)];
             Y = [Y(1);Y;Y(end)];
             qX = [];
@@ -496,7 +682,7 @@ classdef crspline < matlab.mixin.SetGet
                 Y = [Y;Y(end)];
             end
 
-            [qX,qY] = crspline.CR(X(n:n+3),Y(n:n+3),linspace(0.01,0.99,100),T);
+            [qX,qY] = crspline.CR(X(n:n+3),Y(n:n+3),linspace(0,1,100),T);
 
         end
 

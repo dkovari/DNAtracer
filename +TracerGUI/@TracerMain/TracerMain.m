@@ -59,11 +59,14 @@ classdef TracerMain < handle
             %Since plotting is the slowest, create the plot first so that
             %the other callbacks appear to respond more naturally
             this.tracePlot = TracerGUI.TracerPlot(this);
-            this.tracePlot.showFigure();
             
             %% Create table of traces
             this.traceTable = TracerGUI.TracerTable(this);
+            
+            
+            %% show gui items
             this.traceTable.showFigure();
+            this.tracePlot.showFigure();
             
             
         end
@@ -131,6 +134,8 @@ classdef TracerMain < handle
     %% Inter-GUI Data operations
     methods
         splitSegment(this,Mol,Seg);
+        mergeSegments(this,SegList);
+        createNewSegment(this,Molecule,Segment);
     end
     %% Event Callbacks
     methods

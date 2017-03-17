@@ -16,7 +16,7 @@ function [TraceData,pth,fn] = processAFMImage()
 %                   .X
 %                   .Y
 
-[TraceData,PathName,FileName] = DNAtracer([],'Display',false);
+[TraceData,PathName,FileName] = DNAtracer([],'Display',false,'MinSize',200);
 
 %% Construct CR-Spline for each molecule segment
 

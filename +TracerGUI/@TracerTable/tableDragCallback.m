@@ -58,6 +58,6 @@ end
 DestSeg = struct('Molecule',dest_mol,'Segment',dest_seg);
 
 
-this.traceDataHandler.moveSegmentMolecule(SegList,DestSeg); %this will notify data listeners of change
+this.traceDataHandler.moveSegment(SegList,DestSeg); %this will notify data listeners of change
 drawnow;
 

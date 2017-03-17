@@ -1,7 +1,7 @@
 function mergeSegments(this,SegList)
+% ui driven function for merging segments using the plot
 
 %% Clear all CR splines from plot
-
 for n=1:numel(this.MoleculeCR)
     for j=1:numel(this.MoleculeCR(n).SegCR)
         try
@@ -16,10 +16,11 @@ this.MoleculeCR(1:end) = [];
 
 MergeList = struct('Molecule',{},'Segment',{},'Direction',{});
 
-%% Setup cursor and keypress callback
-
-cross_cursor = load(fullfile(fileparts(mfilename('fullpath')),'cross_crusor.mat'));
+%% Setup cursor data and keypress callback
+cross_cursor = load(fullfile(fileparts(mfilename('fullpath')),'cross_cursor.mat'));
 hFig = this.hFig;
+
+state = uisuspend(hFig);
 
 origUD = hFig.UserData;
 hFig.UserData = 'wait';
@@ -34,12 +35,22 @@ hTxt = uicontrol(hFig,...
     'String','Select Endpoint of 1st segment. Press Esc to cancel.',...
     'FontSize',16,...
     'Units','points',...
-    'Position',[5,5,16*63/2,16],...
+    'Position',[5,5,16*63/2,24],...
     'HorizontalAlignment','center',...
     'BackgroundColor',[1,1,1]);
 
+%% Connection Line
+hConn = gobjects(numel(SegList)-1,1);
+for n=1:numel(SegList)-1
+    hConn(n) = line('xdata',NaN,'ydata',NaN,...
+        'parent',this.hAx,...
+        'color',this.SELECTED_LINE_COLOR,...
+        'LineStyle','-.',...
+        'pickableparts','none'); %turn off click detection on line
+end
+
 %% Plot Segments and End-points
-colors = colorGen(numel(this.traceDataHandler.MoleculeData));
+colors = this.colorGen(numel(this.traceDataHandler.MoleculeData));
 hLine = gobjects(numel(SegList),1);
 hStartPoint = gobjects(numel(SegList),1);
 hEndPoint = gobjects(numel(SegList),1);
@@ -52,11 +63,14 @@ for n=1:numel(SegList)
     SegList(n).X = [X(1),X(end)];
     SegList(n).Y = [Y(1),Y(end)];
     
-    CR = crspline(X,Y);
-    hLine(n) = plot(CR,'Parent',this.hAx,...
-                'interactive',false,...
-                'LineProperties',{'color',colors(Molecule,:),...
-                                    'LineWidth',this.SELECTED_LINE_WIDTH});
+    %draw segment curve
+    [qX,qY] = crspline.CRline(X,Y);
+    hLine(n) = line(qX,qY,'Parent',this.hAx,...
+                'color',colors(Molecule,:),...
+                'LineWidth',this.SELECTED_LINE_WIDTH,...
+                'pickableparts','none');%turn off click detection on line
+    
+    %draw starting point     
     hStartPoint(n) = line(X(1),Y(1),...
         'Parent',this.hAx,...
         'Marker','o',...
@@ -68,6 +82,7 @@ for n=1:numel(SegList)
     setappdata(hStartPoint(n),'SegID',n);
     setappdata(hStartPoint(n),'PointType','start');
     
+    %draw end point
     hEndPoint(n) = line(X(end),Y(end),...
         'Parent',this.hAx,...
         'Marker','d',...
@@ -80,12 +95,7 @@ for n=1:numel(SegList)
     setappdata(hEndPoint(n),'PointType','end');
 
 end
-%% Connection Line
-hConn = gobjects(numel(SegList)-1,1);
-for n=1:numel(SegList)-1
-    hConn(n) = line(this.hAx,'color',this.SELECTED_LINE_COLOR,...
-                    'LineStyle','-.');
-end
+
 
 %% setup vars for first point
 index = 1;
@@ -94,9 +104,10 @@ hFig.PointerShapeCData = cross_cursor.cross1;
 hFig.PointerShapeHotSpot = [16,16];
 
 %% callback functions
-    function PointClick(h,e)
+    function PointClick(h,~)
         SegID = getappdata(h,'SegID');
         PointType = getappdata(h,'PointType');
+        
         if index==1 %picking first point
             MergeList(1).Molecule = SegList(SegID).Molecule;
             MergeList(1).Segment = SegList(SegID).Segment;
@@ -105,11 +116,14 @@ hFig.PointerShapeHotSpot = [16,16];
                 set(hConn(1),'Xdata',[SegList(SegID).X(1);NaN],'Ydata',[SegList(SegID).Y(1);NaN]);
             else
                 MergeList(1).Direction = 'forward';
-                set(hConn(1),'Xdata',[SegList(SegID).X(end);NaN],['Ydata',SegList(SegID).Y(end);NaN]);
+                set(hConn(1),'Xdata',[SegList(SegID).X(2);NaN],'Ydata',[SegList(SegID).Y(2);NaN]);
             end
-            
-            %set cursor
+
+            %set cursor to simple cross
             hFig.PointerShapeCData = cross_cursor.cross;
+            
+            % change message text
+            hTxt.String = 'Select starting point of next segment. Esc to cancel.';
             
         else %picking joining point
             MergeList(index).Molecule = SegList(SegID).Molecule;
@@ -117,24 +131,29 @@ hFig.PointerShapeHotSpot = [16,16];
             if strcmp(PointType,'start') %picked first point, forward direction
                 MergeList(index).Direction = 'forward';
                 x = hConn(index-1).XData;
-                y = hConn(index-1).YData;
-                set(hConn(index-1),'xdata',[x(1),SegList(SegID).X(1)],'ydata',[y(1),SegList(SegID).Y(1)]);
+                y = hConn(index-1).YData;   
+                set(hConn(index-1),'xdata',[x(1);SegList(SegID).X(1)],'ydata',[y(1);SegList(SegID).Y(1)]);
                 
                 if index<numel(SegList)
-                    set(hConn(index),'Xdata',[SegList(SegID).X(end);NaN],'Ydata',[SegList(SegID).Y(end);NaN]);
+                    set(hConn(index),'Xdata',[SegList(SegID).X(2);NaN],'Ydata',[SegList(SegID).Y(2);NaN]);
                 end
                 
             else%picked last point, reverse direction
                 MergeList(index).Direction = 'reverse';
                 x = hConn(index-1).XData;
                 y = hConn(index-1).YData;
-                set(hConn(index-1),'xdata',[x(1),SegList(SegID).X(end)],'ydata',[y(1),SegList(SegID).Y(end)]);
+                set(hConn(index-1),'xdata',[x(1);SegList(SegID).X(2)],'ydata',[y(1);SegList(SegID).Y(2)]);
                 
                 if index<numel(SegList)
                     set(hConn(index),'Xdata',[SegList(SegID).X(1);NaN],'Ydata',[SegList(SegID).Y(1);NaN]);
                 end
             end
         end
+        
+        %% Remove ends on clicks segment
+        delete(hEndPoint(SegID));
+        delete(hStartPoint(SegID));
+            
         %% setup line dragging
         if index<numel(SegList)
             set(hFig,'WindowButtonMotionFcn',@(~,e)MouseMove(hConn(index),e));
@@ -148,13 +167,23 @@ hFig.PointerShapeHotSpot = [16,16];
         
     end
 
-    function KeyPress(~,e)
+    function KeyPress(h,e)
+        %handle cancel
         if strcmp(e.Key,'escape')
             hFig.UserData = 'continue';
         end
+        
+        %block ctrl-z/cmd-z 
+        if strcmp(e.Key,'z')
+            return;
+        end
+        
+        %handle orig key presses
+        hgfeval(origKeyCB,h,e);
+        
     end
 
-    function MouseMove(hC,e)
+    function MouseMove(hC,~)
         x= hC.XData;
         y = hC.YData;
         
@@ -178,11 +207,14 @@ hFig.WindowButtonMotionFcn = orig_MouseMove;
 delete(hLine);
 delete(hStartPoint);
 delete(hEndPoint);
-delete(CR);
 delete(hConn);
+try
+   uirestore(state);
+catch
+end
 %% Process
 if numel(MergeList)>1
-    disp(MergeList)
+    this.traceDataHandler.mergeSegments(MergeList);
 end
 
 this.updateCRsplines();

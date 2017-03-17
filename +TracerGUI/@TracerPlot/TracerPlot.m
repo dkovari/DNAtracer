@@ -16,7 +16,7 @@ classdef TracerPlot < handle
         DEFAULT_LINE_WIDTH = 1.5;
         DEFAULT_MARKER_SIZE = 6;
         SELECTED_LINE_WIDTH = 2.5;
-        SELECTED_LINE_STYLE = '-.';
+        SELECTED_LINE_STYLE = '-';
         SELECTED_LINE_COLOR = 'r';
         SELECTED_MARKER_SIZE = 8;
         SELECTED_MARKER_COLOR = 'r';
@@ -75,6 +75,7 @@ classdef TracerPlot < handle
         keypressCallback(this,h,e);
         splitSegment(this,Molecule,Segment);
         mergeSegments(this,SegList)
+        SegData = UIcreateNewSegment(this);
     end
     
 end

@@ -62,11 +62,14 @@ hTxt = uicontrol(hFig,...
     'String','Choose location to break highlighted segment. Press Esc to cancel.',...
     'FontSize',16,...
     'Units','points',...
-    'Position',[5,5,16*63/2,16],...
+    'Position',[5,5,16*63/2,24],...
     'HorizontalAlignment','center',...
     'BackgroundColor',[1,1,1]);
 
 %% Change callbacks and userdata
+
+state = uisuspend(hFig);
+
 this.hAx.UserData = 'wait';
 orig_KeyCB = hFig.KeyPressFcn;
 
@@ -86,11 +89,18 @@ hFig.KeyPressFcn = @KeyPress;
         this.hAx.UserData = 'continue';
     end
 
-    function KeyPress(~,e)
+    function KeyPress(h,e)
         if strcmp(e.Key,'escape')
             STATUS = 'canceled';
             this.hAx.UserData = 'continue';
         end
+        %block ctrl-z/cmd-z 
+        if strcmp(e.Key,'z')
+            return;
+        end
+        
+        %handle orig key presses
+        hgfeval(orig_KeyCB,h,e);
     end
 
 %% wait 
@@ -107,6 +117,11 @@ hFig.KeyPressFcn = orig_KeyCB;
 
 %% Clean Up
 hFig.Pointer = 'arrow';
+
+try
+   uirestore(state);
+catch
+end
 %% process
 if strcmp(STATUS,'clicked')
     %'in click proc'

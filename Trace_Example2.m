@@ -1,8 +1,11 @@
+clc;
+close all force
+
 %% Load DNA Image and Trace Molecules
 
-TraceData = DNAtracer('Example Images/ll15_1a.001');
+TraceData = DNAtracer('Example Images/OID-O1-400_GB.003','MinSize',200);
 
-title('Example Images/ll15_1a.001');
+title('Example Images/OID-O1-400_GB.003');
 
 %% Construct CR-Spline for each molecule segment
 
@@ -38,7 +41,6 @@ for n=1:numel(TraceData.MoleculeData)
             
             TraceData.MoleculeData(n).Segment(j).cspline.s = S;
             TraceData.MoleculeData(n).Segment(j).cspline.pp = pp;
-                
             
         end
         S = TraceData.MoleculeData(n).Segment(j).cspline.s;

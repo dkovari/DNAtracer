@@ -1,4 +1,4 @@
-% This function read tracing file and return a matrix of coordinates of
+% This function reads tracing file and return a matrix of coordinates of
 % tracing.
 
 function data = readtr(filename)

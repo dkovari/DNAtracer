@@ -8,6 +8,8 @@ function [TraceData,PathName,FileName] = DNAtracer(filename,varargin)
 % Parameters:
 %   'Display',true/false    Plot image data and traces
 %   'Parent',hPar   Graphics handle to draw on if Display=true
+%   'MinSize',(default=20): minimum feature size to keep (in nm)
+%   'MaxSize',(default=Inf): maximum feature size
 
 %% Import packages
 import DIreader.*
@@ -44,6 +46,8 @@ p.CaseSensitive = false;
 
 addParameter(p,'Display',true,@(x) isscalar(x));
 addParameter(p,'Parent',[],@(x) isempty(x)||ishghandle(x));
+addParameter(p,'MinSize',20);
+addParameter(p,'MaxSize',Inf);
 
 parse(p,varargin{:});
 
@@ -64,6 +68,11 @@ if p.Results.Display
     end
 end
 
+%% Calculate Feature Size Range
+PxScale = NS_data.width*1000/NS_data.columns;%nm/px
+MinSizePx = p.Results.MinSize*PxScale;
+MaxSizePx = p.Results.MaxSize*PxScale;
+
 %% Flatten Image
 [xx,yy] = meshgrid(1:size(im_data,2),1:size(im_data,1));
 xx=reshape(xx,[],1);
@@ -73,7 +82,6 @@ A = mldivide(XYmat,reshape(im_data,[],1));
 
 im_data_flat = reshape(im_data,[],1)-XYmat*A;
 im_data_flat = reshape(im_data_flat,size(im_data));
-
 
 %% Estimate Threshold 
 im_data_flat = im_data_flat - min(im_data_flat(:)); %shift so lowest value is zero
@@ -92,7 +100,7 @@ bin_data = im_data_flat>th;
 
 %% filter data to remove small junk
 %thow out small junk
-bin_data = bwareafilt(bin_data,[40,Inf]);
+bin_data = bwareafilt(bin_data,[2*MinSizePx,20*MaxSizePx]); %give some extra room on the top size since there will be pixels around the trace that are included.
 
 %clear objects on edge
 bin_data = imclearborder(bin_data);
@@ -139,15 +147,37 @@ for n=1:numel(CC.PixelIdxList)
             segcount = segcount+1;
             MoleculeData(n).Segment(segcount).XY = fliplr(bsxfun(@plus,YX{j},SUBS(1,:)))-1; %shift back to index relative to entire image and correct for pixel shift
         end
+    end  
+end
+
+
+%% Delete empty molecules
+for n=numel(MoleculeData):-1:1
+    if isempty(MoleculeData(n).Segment)
+        MoleculeData(n) = [];
     end
-    
+end
+
+%% Apply size filter to molecues
+for n=numel(MoleculeData):-1:1
+    total_length = 0;
+    for j=1:numel(MoleculeData(n).Segment)
+        XY = MoleculeData(n).Segment(j).XY;
+        len = sum(sqrt(sum(XY.^2,2)),1);
+        total_length = total_length + len;
+    end
+    %apply length restriction, remember we likely have a manhattan distance
+    %so only throw out molecules longer than sqrt(2)*MaxLength
+    if total_length < MinSizePx || total_length>sqrt(2)*MaxSizePx
+        MoleculeData(n) = [];
+    end
 end
 
 %% Plot all the lines 
 if p.Results.Display
     imagesc(hAx,im_data_flat);
     axis(hAx,'image');
-    colormap(hAx,'gray');
+    %colormap(hAx,'gray');
     washold = ishold(hAx);
     hold(hAx,'on');
 
@@ -155,6 +185,7 @@ if p.Results.Display
     hLines = gobjects(numel(MoleculeData),1);
     for n=1:numel(MoleculeData)
         for j=1:numel(MoleculeData(n).Segment)
+            
             hLn = plot(MoleculeData(n).Segment(j).XY(:,1),MoleculeData(n).Segment(j).XY(:,2),'-','color',colors(n,:));
 
             %endpoints
