@@ -2,15 +2,20 @@ function mergeSegments(this,SegList)
 % ui driven function for merging segments using the plot
 
 %% Clear all CR splines from plot
+% for n=1:numel(this.MoleculeCR)
+%     for j=1:numel(this.MoleculeCR(n).SegCR)
+%         try
+%         delete(this.MoleculeCR(n).SegCR(j));
+%         catch
+%         end
+%     end     
+% end
+% this.MoleculeCR(1:end) = [];
 for n=1:numel(this.MoleculeCR)
     for j=1:numel(this.MoleculeCR(n).SegCR)
-        try
-        delete(this.MoleculeCR(n).SegCR(j));
-        catch
-        end
-    end     
+        this.MoleculeCR(n).SegCR(j).hidePlot;
+    end
 end
-this.MoleculeCR(1:end) = [];
 
 %% Init Resulting list
 
@@ -219,4 +224,10 @@ end
 
 this.updateCRsplines();
 
+%% Show cr segments
+for n=1:numel(this.MoleculeCR)
+    for j=1:numel(this.MoleculeCR(n).SegCR)
+        this.MoleculeCR(n).SegCR(j).showPlot;
+    end
+end
 end

@@ -46,7 +46,7 @@ classdef crspline < matlab.mixin.SetGet
 %       Added listeners for changes to X and Y data
 %       added Callback for ui-edit events
 
-%% Class DEF  
+%% Class Def 
     properties (SetObservable = true)
         X; %xpoints
         Y; %ypoints
@@ -70,10 +70,14 @@ classdef crspline < matlab.mixin.SetGet
         MOVE_PT;
         CLICK_ON=false;
         
-        InteractivePlot;
+        pInteractivePlot;
         
         orig_MouseMove;
         orig_MouseUp;
+    end
+    
+    properties (Dependent=true)
+        Interactive
     end
     
     %x
@@ -144,6 +148,7 @@ classdef crspline < matlab.mixin.SetGet
         end
     end
     
+    %% Plot
     methods %overloads
         
         function [hLine,hPts] = plot(this,varargin)
@@ -242,7 +247,13 @@ classdef crspline < matlab.mixin.SetGet
                 elseif isstruct(p.Results.PointProperties)
                     hPts = line('xdata',this.pltX,'ydata',this.pltY,'parent',this.hAx,p.Results.PointProperties);
                 else
-                    hPts = line('xdata',this.pltX,'ydata',this.pltY,'parent',this.hAx,'LineStyle','none','marker','s','markeredgecolor',get(hLine,'color'),'markerfacecolor',get(hLine,'Color'),'markersize',8);
+                    hPts = line('xdata',this.pltX,'ydata',this.pltY,...
+                        'parent',this.hAx,...
+                        'LineStyle','none',...
+                        'marker','s',...
+                        'markeredgecolor',get(hLine,'color'),...
+                        'markerfacecolor',get(hLine,'Color'),...
+                        'markersize',8);
                 end
             end
             
@@ -251,7 +262,7 @@ classdef crspline < matlab.mixin.SetGet
                 % curve
                 this.hSeg = gobjects(numel(this.pX)-1,1);
                 for n = 1:numel(this.pX)-1
-                    [qX,qY] = crspline.CRseg(this.pX,this.pY,n);
+                    [qX,qY] = crspline.CRseg(this.pX,this.pY,n,this.Tension);
                     this.hSeg(n) = line(qX,qY,'visible','off','pickableparts','all','ButtonDownFcn',@(h,e) this.AddPt(h,e));
                     setappdata(this.hSeg(n),'SegID',n);
                 end
@@ -264,20 +275,64 @@ classdef crspline < matlab.mixin.SetGet
                 hMenu = uicontextmenu(this.hAx.Parent);
                 hPts.UIContextMenu = hMenu;
                 uimenu(hMenu,'label','Delete Point','callback',@(h,e) this.DeletePt(h,e));
+                
+                %move points to top
+                try
+                    %uistack(hPts,'top');
+                    restack(this.hAx,hPts,this.hSeg);
+                catch
+                end
 
             end
 
             %% Set Object properties
-            this.InteractivePlot = p.Results.Interactive;
+            this.pInteractivePlot = p.Results.Interactive;
             this.hLine = hLine;
             this.hPts = hPts;
-            %move points to top
+            
+        end
+        
+    end
+    
+    %% plot interactions
+    methods
+        function hidePlot(this)
+            if ~this.plotValid
+                return;
+            end
+            
             try
-                uistack(this.hPts,'top');
+                set(this.hLine,'visible','off');
+            catch
+            end
+            try
+                set(this.hPts,'visible','off');
+            catch
+            end
+            try
+                set(this.hSeg,'pickableparts','none');
+            catch
+            end
+                
+                
+        end
+        function showPlot(this)
+            if ~this.plotValid
+                return;
+            end
+            try
+                set(this.hLine,'visible','on');
+            catch
+            end
+            try
+                set(this.hPts,'visible','on');
+            catch
+            end
+            try
+                set(this.hSeg,'pickableparts','all');
             catch
             end
         end
-        
     end
     
     %% get/set methods
@@ -322,6 +377,60 @@ classdef crspline < matlab.mixin.SetGet
         function hP = PointsHandle(this)
             hP = this.hPts;
         end
+        
+        function set.Interactive(this,bool)
+            if ~this.plotValid
+                return;
+            end
+            
+            X = this.pltX;
+            Y = this.pltY;
+            if bool && ~this.pInteractivePlot %turn interactive on
+                %create hidden segments if needed
+                if numel(this.hSeg)<numel(X)-1
+                    this.hPts(numel(this.hPts)+1:(numel(X)-1)) = gobjects((numel(X)-1)-numel(this.hPts));
+                end
+                for n=numel(this.hSeg):-1:1
+                    if ~ishghandle(this.hSeg(n))
+                        [qX,qY] = crspline.CRseg(X,Y,n,this.Tension);
+                        this.hSeg(n) = line(qX,qY,'visible','off','pickableparts','all','ButtonDownFcn',@(h,e) this.AddPt(h,e));
+                        setappdata(this.hSeg(n),'SegID',n);
+                    else
+                        set(this.hSeg(n),'visible','pickableparts','all');
+                    end
+                end
+                
+                %create hPts if needed
+                if isempty(this.hPts)||~ishghandle(this.hPts)
+                    this.hPts = line('xdata',this.pltX,'ydata',this.pltY,...
+                        'parent',this.hAx,...
+                        'LineStyle','none',...
+                        'marker','s',...
+                        'markeredgecolor',get(this.hLine,'color'),...
+                        'markerfacecolor',get(this.hLine,'Color'),...
+                        'markersize',8,...
+                        'ButtonDownFcn',@(h,e) this.MouseClick(h,e));
+                else
+                    set(this.hPts,'visible','on');
+                end
+                restack(this.hAx,this.hPts,this.hSeg);
+                this.pInteractivePlot = true;
+            elseif ~bool && this.pInteractivePlot %turn off
+                try
+                    set(this.hPts,'visible','off');
+                catch
+                end
+                try
+                    set(this.hSeg,'pickableparts','none');
+                catch
+                end
+                this.pInteractivePlot = false;
+            end
+            
+        end
+        function bool = get.Interactive(this)
+            bool=this.pInteractivePlot;
+        end
     end
     
     %% internal methods
@@ -334,30 +443,37 @@ classdef crspline < matlab.mixin.SetGet
 
             %update line
             [qx,qy] = crspline.CRline(this.pltX,this.pltY,100,this.Tension);
+
             try
                 set(this.hLine,'xdata',qx,'ydata',qy');
             catch
             end
             %update points
-            try
-                set(this.hPts,'xdata',this.pltX,'ydata',this.pltY);
-            catch
-            end
-            if this.InteractivePlot
-                %update hidden segments
+            if ~isempty(this.hPts) && ishghandle(this.hPts)
                 try
-                    delete(this.hSeg);
+                    set(this.hPts,'xdata',this.pltX,'ydata',this.pltY);
                 catch
                 end
-                this.hSeg = gobjects(numel(this.pltX)-1,1);
-                for sn = 1:numel(this.pltX)-1
-                    [qX,qY] = crspline.CRseg(this.pltX,this.pltY,sn,this.Tension);
-                    this.hSeg(sn) = line(qX,qY,'parent',this.hAx,'visible','off','pickableparts','all','ButtonDownFcn',@(h,e) this.AddPt(h,e));
-                    setappdata(this.hSeg(sn),'SegID',sn);
+            end
+            if this.pInteractivePlot
+                %update hidden segments
+                if isempty(this.hSeg)
+                    this.hSeg = gobjects(numel(this.pltX)-1,1);
+                end
+                for n=numel(this.pltX)-1:-1:1
+                    [qX,qY] = crspline.CRseg(this.pX,this.pY,n,this.Tension);
+                    if n>numel(this.hSeg) || ~ishghandle(this.hSeg(n))%new segment
+                        this.hSeg(n) = line(qX,qY,'parent',this.hAx,'visible','off','pickableparts','all','ButtonDownFcn',@(h,e) this.AddPt(h,e));
+                        setappdata(this.hSeg(n),'SegID',n);
+                    else %just reset the data
+                        set(this.hSeg(n),'XData',qX,'YData',qY);
+                    end
+                        
                 end
 
                 %put points back on top
-                uistack(this.hPts,'top');
+                %uistack(this.hPts,'top');
+                restack(this.hAx,this.hPts,this.hSeg);
             end
         end
     end
@@ -704,6 +820,34 @@ classdef crspline < matlab.mixin.SetGet
             qy = tMat*CRmat*Y;
         end
     end
+    
+end
+
+function restack(hAx,top_handles,bottom_handles)
+%alternative to uistack, since it is very slow
+% hAx: parent axes
+%   top_handles: handles that should be brought to top
+%   bottom_handler: handles that should be below top_handles
+
+%get rid of invalid handles
+top_handles(~ishghandle(top_handles)) = [];
+bottom_handles(~ishghandle(bottom_handles)) = [];
+
+%get list of all children
+AllChildren = allchild(hAx);
+
+%find locations of the top and bottom handles in the children list
+topInd = find(ismember(AllChildren,top_handles));
+bottomInd = find(ismember(AllChildren,bottom_handles));
+
+%make an order list of both handle sets
+indList = [topInd;bottomInd];
+orderedInd = sort(indList);
+
+%shuffle the handles, with top before bottom
+AllChildren(orderedInd) = AllChildren(indList);
+
+set(hAx,'Children',AllChildren);
     
 end
 

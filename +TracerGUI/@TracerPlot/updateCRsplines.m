@@ -62,8 +62,9 @@ for n=1:nMol
                                     'Marker','s',...
                                     'LineStyle','none',...
                                     'MarkerFaceColor',colors(n,:),...
-                                    'MarkerEdgeColor','none'});
+                                    'MarkerEdgeColor','none'});                 
         end
+        this.MoleculeCR(n).SegCR(j).Interactive = false; %turn off interactive feature;
         this.MoleculeCR(n).SegCR(j).UIeditCallback = @(~,~) this.uiPlotEditCallback(n,j);
 
     end

@@ -2,15 +2,21 @@ function splitSegment(this,Molecule,Segment)
 
 %% Clear all CR splines from plot
 
+% for n=1:numel(this.MoleculeCR)
+%     for j=1:numel(this.MoleculeCR(n).SegCR)
+%         try
+%         delete(this.MoleculeCR(n).SegCR(j));
+%         catch
+%         end
+%     end     
+% end
+% this.MoleculeCR(1:end) = []; 
+
 for n=1:numel(this.MoleculeCR)
     for j=1:numel(this.MoleculeCR(n).SegCR)
-        try
-        delete(this.MoleculeCR(n).SegCR(j));
-        catch
-        end
-    end     
+        this.MoleculeCR(n).SegCR(j).hidePlot;
+    end
 end
-this.MoleculeCR(1:end) = []; 
 
 
 %% Draw CR Spline for current segment
@@ -131,6 +137,12 @@ else
     this.updateCRsplines();
 end
 
+%% show the rest of the segments
+for n=1:numel(this.MoleculeCR)
+    for j=1:numel(this.MoleculeCR(n).SegCR)
+        this.MoleculeCR(n).SegCR(j).showPlot;
+    end
+end
 
 end
 
