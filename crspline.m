@@ -74,6 +74,8 @@ classdef crspline < matlab.mixin.SetGet
         
         orig_MouseMove;
         orig_MouseUp;
+        
+        lastPtsVisible = 'off';
     end
     
     properties (Dependent=true)
@@ -255,6 +257,7 @@ classdef crspline < matlab.mixin.SetGet
                         'markerfacecolor',get(hLine,'Color'),...
                         'markersize',8);
                 end
+                this.lastPtsVisible = 'on';
             end
             
             if p.Results.Interactive
@@ -306,6 +309,7 @@ classdef crspline < matlab.mixin.SetGet
             catch
             end
             try
+                this.lastPtsVisible = get(this.hPts,'visible');
                 set(this.hPts,'visible','off');
             catch
             end
@@ -325,7 +329,7 @@ classdef crspline < matlab.mixin.SetGet
             catch
             end
             try
-                set(this.hPts,'visible','on');
+                set(this.hPts,'visible',this.lastPtsVisible);
             catch
             end
             try
@@ -383,22 +387,20 @@ classdef crspline < matlab.mixin.SetGet
                 return;
             end
             
-            X = this.pltX;
-            Y = this.pltY;
             if bool && ~this.pInteractivePlot %turn interactive on
-                %create hidden segments if needed
-                if numel(this.hSeg)<numel(X)-1
-                    this.hPts(numel(this.hPts)+1:(numel(X)-1)) = gobjects((numel(X)-1)-numel(this.hPts));
+                %create hidden segments 
+                try
+                    delete(this.hSeg)
+                catch
                 end
-                for n=numel(this.hSeg):-1:1
-                    if ~ishghandle(this.hSeg(n))
-                        [qX,qY] = crspline.CRseg(X,Y,n,this.Tension);
-                        this.hSeg(n) = line(qX,qY,'visible','off','pickableparts','all','ButtonDownFcn',@(h,e) this.AddPt(h,e));
-                        setappdata(this.hSeg(n),'SegID',n);
-                    else
-                        set(this.hSeg(n),'visible','pickableparts','all');
-                    end
+                
+                this.hSeg = gobjects(numel(this.pX)-1,1);
+                for n = 1:numel(this.pX)-1
+                    [qX,qY] = crspline.CRseg(this.pX,this.pY,n,this.Tension);
+                    this.hSeg(n) = line(qX,qY,'visible','off','pickableparts','all','ButtonDownFcn',@(h,e) this.AddPt(h,e));
+                    setappdata(this.hSeg(n),'SegID',n);
                 end
+               
                 
                 %create hPts if needed
                 if isempty(this.hPts)||~ishghandle(this.hPts)
@@ -409,10 +411,17 @@ classdef crspline < matlab.mixin.SetGet
                         'markeredgecolor',get(this.hLine,'color'),...
                         'markerfacecolor',get(this.hLine,'Color'),...
                         'markersize',8,...
+                        'pickableparts','visible',...
                         'ButtonDownFcn',@(h,e) this.MouseClick(h,e));
                 else
-                    set(this.hPts,'visible','on');
+                    set(this.hPts,'visible','on','ButtonDownFcn',@(h,e) this.MouseClick(h,e));
                 end
+                
+                %delete points menu
+                hMenu = uicontextmenu(this.hAx.Parent);
+                this.hPts.UIContextMenu = hMenu;
+                uimenu(hMenu,'label','Delete Point','callback',@(h,e) this.DeletePt(h,e));
+                
                 restack(this.hAx,this.hPts,this.hSeg);
                 this.pInteractivePlot = true;
             elseif ~bool && this.pInteractivePlot %turn off
@@ -421,7 +430,7 @@ classdef crspline < matlab.mixin.SetGet
                 catch
                 end
                 try
-                    set(this.hSeg,'pickableparts','none');
+                    delete(this.hSeg);
                 catch
                 end
                 this.pInteractivePlot = false;
@@ -573,7 +582,7 @@ classdef crspline < matlab.mixin.SetGet
             this.Y = this.pY;
             
             %fire uieditcallback
-            hgfeval(this.UIeditCallback,this,struct('Event','AddPt'));
+            %hgfeval(this.UIeditCallback,this,struct('Event','AddPt'));
         end
     end
     
@@ -848,6 +857,7 @@ orderedInd = sort(indList);
 AllChildren(orderedInd) = AllChildren(indList);
 
 set(hAx,'Children',AllChildren);
+%hAx.Children(orderedInd) = AllChildren(indList);
     
 end
 

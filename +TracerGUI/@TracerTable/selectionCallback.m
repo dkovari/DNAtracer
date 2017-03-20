@@ -22,7 +22,7 @@ end
 
 %% set selectedMolecule
 
-this.mainController.selecedMoleculeChangedViaTable(Molecules,Segments);
+this.mainController.selectedMoleculeChangedViaTable(Molecules,Segments);
 
 
 %% Set selected rows in table
@@ -34,12 +34,24 @@ try
 if numel(sel_row)==0
     this.hMenu_Split.Visible = 'off';
     this.hMenu_Merge.Visible = 'off';
+    this.hMenu_MoveToNew = 'off';
+    this.hMenu_Delete = 'off';
+    this.hMenu_InsBefore = 'off';
+    this.hMenu_InsAfter = 'off';
 elseif numel(sel_row)==1
     this.hMenu_Split.Visible = 'on';
     this.hMenu_Merge.Visible = 'off';
+    this.hMenu_MoveToNew = 'on';
+    this.hMenu_Delete = 'on';
+    this.hMenu_InsBefore = 'on';
+    this.hMenu_InsAfter = 'on';
 else
     this.hMenu_Split.Visible = 'off';
     this.hMenu_Merge.Visible = 'on';
+    this.hMenu_MoveToNew = 'on';
+    this.hMenu_Delete = 'on';
+    this.hMenu_InsBefore = 'on';
+    this.hMenu_InsAfter = 'on';
 end
 
 catch

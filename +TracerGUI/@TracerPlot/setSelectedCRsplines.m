@@ -25,6 +25,13 @@ for n=1:numel(this.MoleculeCR)
         catch
         end
         
+        %% Hide points
+        try
+            hP = this.MoleculeCR(n).SegCR(j).PointsHandle;
+            set(hP,'visible','off');
+        catch
+        end
+        
     end
 end
 

@@ -77,6 +77,7 @@ classdef TracerPlot < handle
         mergeSegments(this,SegList)
         SegData = UIcreateNewSegment(this);
         uiSelectMolecule(this,hObj);
+        updateImage(this);
     end
     
 end

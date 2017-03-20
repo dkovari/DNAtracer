@@ -10,6 +10,10 @@ classdef TracerTable < handle
         dataChangeListener;
         hMenu_Split;
         hMenu_Merge;
+        hMenu_MoveToNew;
+        hMenu_Delete;
+        hMenu_InsBefore;
+        hMenu_InsAfter;
     end
     
     %% __structors

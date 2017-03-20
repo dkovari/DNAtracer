@@ -18,6 +18,9 @@ for n=1:numel(this.MoleculeCR)
     end
 end
 
+%% Pause any active figure functions
+state = uisuspend(this.hFig);
+
 
 %% Draw CR Spline for current segment
 X = this.traceDataHandler.MoleculeData(Molecule).Segment(Segment).CRnodes.X;
@@ -34,13 +37,12 @@ for n = 1:numel(X)-1
     [qX,qY] = crspline.CRseg(X,Y,n);
     hSeg(n) = line(qX,qY,...
         'parent',this.hAx,...
-        'pickableparts','all',...
         'ButtonDownFcn',@LineClick,...
         'color',this.SELECTED_LINE_COLOR,...
         'LineWidth',this.SELECTED_LINE_WIDTH);
     setappdata(hSeg(n),'SegID',n);
 end
-                                
+
 %%
 BreakPt_X = NaN;
 BreakPt_Y = NaN;
@@ -57,7 +59,7 @@ cursor(eye(32,32)|diag(ones(31,1),-1)|diag(ones(31,1),1)|fliplr(eye(32,32)|diag(
 cursor(16:17,16:17) = 0;%figure();imagesc(cursor);axis image
 cursor(cursor==0) = NaN;
 
-hFig = this.hAx.Parent;
+hFig = this.hFig;
 hFig.PointerShapeCData = cursor;
 hFig.PointerShapeHotSpot = [16,16];
 hFig.Pointer = 'custom';
@@ -74,7 +76,7 @@ hTxt = uicontrol(hFig,...
 
 %% Change callbacks and userdata
 
-state = uisuspend(hFig);
+
 
 this.hAx.UserData = 'wait';
 orig_KeyCB = hFig.KeyPressFcn;

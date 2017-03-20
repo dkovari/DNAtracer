@@ -316,6 +316,59 @@ classdef TracerData < handle
             end
         end
         
+        %% Move segments to new molecule
+        function newSegList = newMoleculeFromSegments(this,SegList)
+            %% create undo buffer
+            this.undoDataBuffer = this.data;
+            this.undoBufferAvailable = true;
+            
+            %% Create new molecule
+            NewMolecule = struct('SubImg',[],'PixelIdxList',[],...
+                'Segment',this.data.MoleculeData(SegList(1).Molecule).Segment(SegList(1).Segment));
+            for n=2:numel(SegList)
+                NewMolecule.Segment(n) = this.data.MoleculeData(SegList(n).Molecule).Segment(SegList(n).Segment);
+            end
+            
+            %% delete segments
+            for n=min([SegList.Molecule]):max([SegList.Molecule])
+                ind = find(n==[SegList.Molecule]);
+                if ~isempty(ind)
+                    seg = [SegList(ind).Segment];
+                    this.data.MoleculeData(n).Segment(seg) = [];
+                end
+            end
+            
+            %% Insert New Molecule
+            new_mol = max([SegList.Molecule])+1;
+            this.data.MoleculeData = [this.data.MoleculeData(1:new_mol-1),...
+                                        NewMolecule,...
+                                        this.data.MoleculeData(new_mol:end)];
+            
+            %remove empty molecules
+            for n=numel(this.data.MoleculeData):-1:1
+                if isempty(this.data.MoleculeData(n).Segment)
+                    this.data.MoleculeData(n) = [];
+                end
+            end
+            
+            for n=numel(SegList):-1:1
+                newSegList(n).Molecule = new_mol;
+                newSegList(n).Segment = n;
+            end
+            
+                                  
+            %% notify data listeners
+            this.notify('DataChanged');
+            
+            %% notify save listeners
+            wasOutdated = this.dataChangedSinceSave;
+            this.dataChangedSinceSave = true;
+            if ~wasOutdated
+                %notify
+                this.notify('SaveStatusChanged');
+            end
+        end
+        
         %% Merge Molecules
         function new_idx = mergeMolecule(this,mol_list)
             
@@ -495,7 +548,7 @@ classdef TracerData < handle
             
             SegList(1) = [];
             %% Delete other segments
-            for n=1:max([SegList.Molecule])
+            for n=min([SegList.Molecule]):max([SegList.Molecule])
                 ind = find(n==[SegList.Molecule]);
                 if ~isempty(ind)
                     seg = [SegList(ind).Segment];

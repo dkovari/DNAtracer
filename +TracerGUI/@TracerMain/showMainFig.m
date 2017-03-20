@@ -53,7 +53,6 @@ this.hMenu_Undo = uimenu(hMenu_Edit,'Label','Undo',...
 hMenu_Win = uimenu(hFig,'Label','Windows');
 uimenu(hMenu_Win,'Label','Molecule List', 'Callback',@(~,~)this.showTraceTable());
 uimenu(hMenu_Win,'Label','Molecule Traces','Callback',@(~,~) this.showTracePlot());
-uimenu(hMenu_Win,'Label','Controls');
 
 function str=tf_2_on_off(tf)
 if tf

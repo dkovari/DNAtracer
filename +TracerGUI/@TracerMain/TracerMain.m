@@ -107,6 +107,9 @@ classdef TracerMain < handle
 
             %open new data handler
             this.traceDataHandler.loadData();
+            
+            %update plot image
+            this.tracePlot.updateImage();
         end
         function saveFile(this)
             this.traceDataHandler.saveData();
@@ -136,6 +139,8 @@ classdef TracerMain < handle
         splitSegment(this,Mol,Seg);
         mergeSegments(this,SegList);
         createNewSegment(this,Molecule,Segment);
+        selectedMoleculeChangedViaTable(this,Molecules,Segments);
+        selectedMoleculeChangedViaPlot(this,Molecule,Segment);
     end
     %% Event Callbacks
     methods
@@ -145,9 +150,7 @@ classdef TracerMain < handle
             catch
             end
         end
-        
         keypressCallback(this,obj,event);
-        
         function updateUndoAvailable(this)
             if this.traceDataHandler.undoBufferAvailable
                 this.hMenu_Undo.Enable='on';
@@ -156,14 +159,10 @@ classdef TracerMain < handle
             end
             
         end
-        
         function saveStateChangeCallback(this)
             %'Save State Changed'
             set(this.hMenu_Save,'Enable',tf_2_on_off(this.traceDataHandler.dataChangedSinceSave));
         end
-        
-        selecedMoleculeChangedViaTable(this,Molecules,Segments);
-        
         function undoDataChange(this)
             this.traceDataHandler.undoLastOp();
         end
