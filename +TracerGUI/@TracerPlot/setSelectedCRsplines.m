@@ -21,7 +21,7 @@ for n=1:numel(this.MoleculeCR)
         try
             setappdata(hL,'MoleculeID',n);
             setappdata(hL,'SegmentID',j);
-            set(hL,'ButtonDownFcn',@(h,~)this.uiSelectMolecule(h));
+            set(hL,'ButtonDownFcn',@(h,~)this.uiSelectMolecule(h),'pickableparts','visible');
         catch
         end
         
@@ -40,9 +40,13 @@ for n=1:numel(this.mainController.selectedMoleculeSegments)
     seg = this.mainController.selectedMoleculeSegments(n).Segment;
     
     for j=1:numel(seg)
-        this.MoleculeCR(mol).SegCR(seg(j)).Interactive = true; %turn on interactive feature;
-        try
+        
         hLine = this.MoleculeCR(mol).SegCR(seg(j)).LineHandle;
+        % turn off selection callback for these lines
+        set(hLine,'ButtonDownFcn','','pickableparts','none');
+        
+        this.MoleculeCR(mol).SegCR(seg(j)).Interactive = true; %turn on interactive feature;
+
         hP = this.MoleculeCR(mol).SegCR(seg(j)).PointsHandle;
         set(hLine,...
             'LineStyle',this.SELECTED_LINE_STYLE,...
@@ -51,13 +55,8 @@ for n=1:numel(this.mainController.selectedMoleculeSegments)
         set(hP,...
                 'MarkerFaceColor',this.SELECTED_MARKER_COLOR,...
                 'MarkerSize',this.SELECTED_MARKER_SIZE);
-        catch
-        end
         
-        %% turn off selection callback for these lines
-        try
-            set(hLine,'ButtonDownFcn','');
-        catch
-        end
+        
+        
     end
 end
