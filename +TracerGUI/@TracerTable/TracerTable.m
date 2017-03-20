@@ -48,6 +48,7 @@ classdef TracerTable < handle
         insertNewSegmentBeforeSelected(this);
         keypressCallback(this,h,e);
         createNewMolecule(this);
+        updatedSelectedRows(this);
     end
     
     methods
