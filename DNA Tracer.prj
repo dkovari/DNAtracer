@@ -1,0 +1,73 @@
+<deployment-project plugin="plugin.apptool" plugin-version="1.0">
+  <configuration build-checksum="1083414493" file="/Users/dkovari/GitHub/DNAtracer/DNA Tracer.prj" location="/Users/dkovari/GitHub/DNAtracer" name="DNA Tracer" target="target.mlapps" target-name="Package App">
+    <param.appname>DNA Tracer</param.appname>
+    <param.authnamewatermark>Daniel Kovari</param.authnamewatermark>
+    <param.email>dkovari@gmail.com</param.email>
+    <param.company>Emory University</param.company>
+    <param.icon />
+    <param.icons />
+    <param.summary>A graphical interface for tracing AFM images of DNA.</param.summary>
+    <param.description>DNA Tracer automatically traces AFM images of DNA molecules and then presents the user with a simple graphical interface for view and editing those traces. Currently, the program accepts *.001 and *.003 Nanoscope image files.</param.description>
+    <param.screenshot>/Users/dkovari/Desktop/Screen Shot 2017-03-21 at 9.18.34 AM.png</param.screenshot>
+    <param.version>1.0</param.version>
+    <param.products.name />
+    <param.products.id />
+    <param.products.version />
+    <param.platforms />
+    <param.output>/Users/dkovari/GitHub</param.output>
+    <param.guid>827d6935-1dbc-4139-bef0-1bfbed445bae</param.guid>
+    <unset>
+      <param.icon />
+      <param.icons />
+      <param.version />
+      <param.products.name />
+      <param.products.id />
+      <param.products.version />
+      <param.platforms />
+    </unset>
+    <fileset.main>
+      <file>${PROJECT_ROOT}/DNA_Tracer.m</file>
+    </fileset.main>
+    <fileset.depfun />
+    <fileset.resources>
+      <file>${PROJECT_ROOT}/+DIreader</file>
+      <file>${PROJECT_ROOT}/+TraceHelpers</file>
+      <file>${PROJECT_ROOT}/+TracerGUI</file>
+      <file>${PROJECT_ROOT}/+uiextras</file>
+      <file>${PROJECT_ROOT}/Example Images</file>
+      <file>${PROJECT_ROOT}/crspline.m</file>
+      <file>${PROJECT_ROOT}/test_functions</file>
+    </fileset.resources>
+    <fileset.package />
+    <build-deliverables>
+      <file location="/Users/dkovari" name="GitHub" optional="false">/Users/dkovari/GitHub</file>
+    </build-deliverables>
+    <workflow />
+    <matlab>
+      <root>/Applications/MATLAB_R2016b.app</root>
+      <toolboxes>
+        <toolbox name="matlabcoder" />
+      </toolboxes>
+      <toolbox>
+        <matlabcoder>
+          <enabled>true</enabled>
+        </matlabcoder>
+      </toolbox>
+    </matlab>
+    <platform>
+      <unix>true</unix>
+      <mac>true</mac>
+      <windows>false</windows>
+      <win2k>false</win2k>
+      <winxp>false</winxp>
+      <vista>false</vista>
+      <linux>false</linux>
+      <solaris>false</solaris>
+      <osver>10.12.3</osver>
+      <os32>false</os32>
+      <os64>true</os64>
+      <arch>maci64</arch>
+      <matlab>true</matlab>
+    </platform>
+  </configuration>
+</deployment-project>
