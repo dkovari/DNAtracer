@@ -1,6 +1,9 @@
 function updateCRsplines(this)
 %called when splines need to be updated
 
+
+set(this.hFig,'Pointer','watch');
+
 nMol = numel(this.traceDataHandler.MoleculeData);
 
 if isempty(this.MoleculeCR)
@@ -74,3 +77,5 @@ end
 
 %% set the linestyle for selected molecules
 this.setSelectedCRsplines();
+
+set(this.hFig,'Pointer','arrow');

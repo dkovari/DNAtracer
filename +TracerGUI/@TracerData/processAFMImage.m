@@ -1,22 +1,34 @@
-function [TraceData,pth,fn] = processAFMImage()
-% TraceData Structure:
-%  TraceData.ND_data
-%       .im_data
-%       .im_data_flat
-%       .im_flat
-%       .bin_data
-%       .RidgeImage
-%       .MoleculeData().
-%           .SubImg
-%           .PixelIdxList
-%           .Segment()
-%               .XY
-%               .cspline
-%               .CRnodes
-%                   .X
-%                   .Y
+function TraceData = processAFMImage(filepath) 
+% process afm images
 
-[TraceData,PathName,FileName] = DNAtracer([],'Display',false,'MinSize',200);
+%% Load Packages
+import TraceHelpers.*;
+
+%% Prompt for molecule cutoff size
+needSize = true;
+defaultAns = {'200','Inf'};
+while needSize
+    answer = inputdlg({'Minimum Size [nm]';'Maximum Size [nm]'},'Molecule Size',1,{'200','Inf'});
+    needSize=false;
+    MinSize = str2double(answer{1});
+    if isnan(MinSize)
+        needSize = true;
+    else
+        defaultAns{1} = num2str(MinSize);
+    end
+    MaxSize = str2double(answer{2});
+    if isnan(MinSize)
+        needSize = true;
+    else
+        defaultAns{2} = num2str(MaxSize);
+    end
+end
+
+%% Run DNA Trace
+TraceData = DNAtracer(filepath,'Display',false,'MinSize',MinSize,'MaxSize',MaxSize);
+
+%% Waitbar
+hWait = waitbar(0,'Constructing Catmull-Rom Splines');
 
 %% Construct CR-Spline for each molecule segment
 
@@ -64,18 +76,16 @@ for n=1:numel(TraceData.MoleculeData)
         TraceData.MoleculeData(n).Segment(j).CRnodes.Y = XY(locs,2);
   
     end
+    
+    
+    try
+        waitbar(n/numel(TraceData.MoleculeData),hWait);
+    catch
+    end
 end
 
-%% Save?
-answer = questdlg('Save processed data as *.mat?','Save?','Yes','No','Yes');
-pth = [];
-fn = [];
-if strcmpi(answer,'Yes')
-    [~,f,~] = fileparts(FileName);
-    [fn,pth] = uiputfile('*.mat','Save Trace Data As...',fullfile(PathName,[f,'.mat']));
-    if fn==0
-        return;
-    end
-    save(fullfile(pth,fn),'-mat','-struct','TraceData');
+%% Delete waitbar
+try
+    delete(hWait);
+catch
 end
-    

@@ -72,21 +72,44 @@ classdef TracerData < handle
         function loadData(this,data,filepath)
             
             dataChangedSinceSave = false;
-            %% Get and Load data from file
+            %% Load data
             persistent LastDir;
 
-            if nargin<2 || isempty(data) %%Nothing Specified, prompt for gui selection
+            if nargin<2 || isempty(data) %Nothing Specified, prompt for gui selection
                 %Ask to load from workspace or file
                 
                 %file
-                [FileName,PathName] = uigetfile({'*.mat','MATLAB Data';'*.*','All Files (*.*)'},...
-                                                'Select TraceData File',...
+%                 [FileName,PathName] = uigetfile({'*.mat','MATLAB Data';'*.*','All Files (*.*)'},...
+%                                                 'Select TraceData File',...
+%                                                 fullfile(LastDir,'*.mat'));
+                                            
+                [FileName,PathName] = uigetfile({'*.mat;*.001;*.003','TraceData & Nanoscope Files (*.mat,*.001,*.003)';...
+                                                '*.mat','TraceData File (*.mat)';...
+                                                '*.001;*.003','Nanoscope Files';...
+                                                '*.001','Nanoscope v1 (*.001)';...
+                                                '*.003','Nanoscope v3 (*.003)';...
+                                                '*.*','All Files (*.*)'},...
+                                                'Select TraceData or Nanoscope Image File',...
                                                 fullfile(LastDir,'*.mat'));
+                %do nothing if canceled
                 if FileName == 0
                     return;
                 end
                 LastDir = PathName;
-                data = load(fullfile(PathName,FileName));
+                
+                [~,~,ext] = fileparts(FileName);
+                switch lower(ext)
+                    case {'.001','.003'} %nanoscope files
+                        data = TracerGUI.TracerData.processAFMImage(fullfile(PathName,FileName));
+                        dataChangedSinceSave = true;
+                        FileName = '';
+                    case '*.mat'
+                        data = load(fullfile(PathName,FileName));
+                    otherwise
+                        warndlg('Selected file was not a *.mat data file, nor *.00x Nanoscope file.\n Attempting to load as MATLAB Data','modal');
+                        data = load(fullfile(PathName,FileName),'-mat');
+                end
+     
             elseif isstruct(data) %struct specified
                 if nargin<3 || isempty(filepath)
                     FileName = '';
@@ -96,13 +119,22 @@ classdef TracerData < handle
                     FileName = [FileName,ext];
                 end
                 dataChangedSinceSave = true;
-            elseif ischar(data)
+            elseif ischar(data) %specified filepath
                 [PathName,FileName,ext] = fileparts(data);
                 FileName = [FileName,ext];
-                
-                data = load(data);
+                switch lower(ext)
+                    case {'.001','.003'} %nanoscope files
+                        data = TracerData.processAFMImage(fullfile(PathName,FileName));
+                        dataChangedSinceSave = true;
+                        FileName = '';
+                    case '*.mat'
+                        data = load(fullfile(PathName,FileName));
+                    otherwise
+                        warndlg('Selected file was not a *.mat data file, nor *.00x Nanoscope file.\n Attempting to load as MATLAB Data','modal');
+                        data = load(fullfile(PathName,FileName),'-mat');
+                end
             else
-                error('unexpected type');
+                error('unexpected input type');
             end
             
             %% validate data
@@ -120,7 +152,6 @@ classdef TracerData < handle
             this.notify('DataChanged');
             
             %% notify listeners
-            this.dataChangedSinceSave = false;
             this.notify('SaveStatusChanged');
 
         end
@@ -137,8 +168,13 @@ classdef TracerData < handle
                 [this.saveFileDir,fn,ext] = fileparts(filepath);
                 this.saveFileName = [fn,ext];
             elseif isempty(this.saveFileName)
+                
+                if ~isempty(this.saveFileDir)
+                    LastDir = this.saveFileDir;
+                end
+                
                 [FileName,FileDir] = uiputfile({'*.mat','MATLAB Data';'*.*','All Files (*.*)'},...
-                                                'Select TraceData File',...
+                                                'Save TraceData File As...',...
                                                 fullfile(LastDir,'*.mat'));
                 if FileName==0
                     warning('canceled save. not saving');
@@ -675,6 +711,11 @@ classdef TracerData < handle
         function NS_data = get.NS_data(this)
             NS_data = this.data.NS_data;
         end
+    end
+    
+    %% static functions
+    methods(Static)
+        [TraceData,pth,fn] = processAFMImage(filepath);
     end
 end
 

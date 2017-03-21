@@ -42,6 +42,12 @@ classdef TracerMain < handle
             %% create data handler
             this.traceDataHandler = TracerGUI.TracerData(data,filepath);
             
+            if isempty(this.traceDataHandler.data)
+                disp('Data was not loaded, canceling...');
+                delete(this)
+                return;
+            end
+            
             %% associate event listeners
             this.saveNameListener = addlistener(this.traceDataHandler,'saveFileName','PostSet',@(~,~) this.updateFigureName);
             addlistener(this.traceDataHandler,'SaveStatusChanged',@(~,~) this.saveStateChangeCallback);

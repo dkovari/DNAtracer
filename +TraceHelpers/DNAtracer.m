@@ -13,7 +13,9 @@ function [TraceData,PathName,FileName] = DNAtracer(filename,varargin)
 
 %% Import packages
 import DIreader.*
-%% Load image
+import TraceHelpers.*
+
+%% Select image to load
 persistent LastDir;
 if nargin<1 || isempty(filename)
     [FileName,PathName] = uigetfile({'*.001;*.003','Nanoscope Files';'*.*','All Files (*.*)'},'Select Nanoscope File',fullfile(LastDir,'*.001'));
@@ -24,6 +26,10 @@ if nargin<1 || isempty(filename)
     filename = fullfile(PathName,FileName);
 end
 
+%% Create waitbar
+hWait = waitbar(0,'Loading Image');
+
+%% Load Image
 [PathName,F_name,~] = fileparts(filename);
 
 NS_data = get_NS_file_info(filename);
@@ -66,6 +72,12 @@ if p.Results.Display
         figure();
         hAx = gca;
     end
+end
+
+%% Update Waitbar
+try
+waitbar(0,hWait,'Flattening Image');
+catch
 end
 
 %% Calculate Feature Size Range
@@ -119,6 +131,12 @@ CC = bwconncomp(bin_data);
 %% Apply Ridge filter using identified traces
 R = ridgefilt_idx(im_filt,CC.PixelIdxList);
 
+%% Update Waitbar
+try
+waitbar(0,hWait,'Tracing Molecules');
+catch
+end
+
 %% Trace using HW's code
 IM = R; %image data to use in tracing, could change this to im_filt
 THRESH = 0.12; %threshold to use, if using im_filt this should be "th"
@@ -147,7 +165,11 @@ for n=1:numel(CC.PixelIdxList)
             segcount = segcount+1;
             MoleculeData(n).Segment(segcount).XY = fliplr(bsxfun(@plus,YX{j},SUBS(1,:)))-1; %shift back to index relative to entire image and correct for pixel shift
         end
-    end  
+    end
+    try
+    waitbar(n/numel(CC.PixelIdxList),hWait);
+    catch
+    end
 end
 
 
@@ -158,6 +180,11 @@ for n=numel(MoleculeData):-1:1
     end
 end
 
+%% Update Waitbar
+try
+waitbar(0,hWait,'Filtering by size');
+catch
+end
 %% Apply size filter to molecues
 for n=numel(MoleculeData):-1:1
     total_length = 0;
@@ -171,6 +198,16 @@ for n=numel(MoleculeData):-1:1
     if total_length < MinSizePx || total_length>sqrt(2)*MaxSizePx
         MoleculeData(n) = [];
     end
+    try
+    waitbar((numel(MoleculeData)+1-n)/numel(MoleculeData),hWait);
+    catch
+    end
+end
+
+%% Delete Waitbar
+try
+    delete(hWait);
+catch
 end
 
 %% Plot all the lines 
@@ -218,6 +255,8 @@ TraceData.MoleculeData = MoleculeData;
 if nargout<1
     clear TraceData;
 end
+
+
 end
 
 function c = cell_sprintf(format,data)
