@@ -103,7 +103,7 @@ classdef TracerData < handle
                         data = TracerGUI.TracerData.processAFMImage(fullfile(PathName,FileName));
                         dataChangedSinceSave = true;
                         FileName = '';
-                    case '*.mat'
+                    case '.mat'
                         data = load(fullfile(PathName,FileName));
                     otherwise
                         warndlg('Selected file was not a *.mat data file, nor *.00x Nanoscope file.\n Attempting to load as MATLAB Data','modal');
@@ -127,7 +127,7 @@ classdef TracerData < handle
                         data = TracerData.processAFMImage(fullfile(PathName,FileName));
                         dataChangedSinceSave = true;
                         FileName = '';
-                    case '*.mat'
+                    case '.mat'
                         data = load(fullfile(PathName,FileName));
                     otherwise
                         warndlg('Selected file was not a *.mat data file, nor *.00x Nanoscope file.\n Attempting to load as MATLAB Data','modal');
