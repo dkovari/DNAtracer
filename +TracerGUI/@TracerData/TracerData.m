@@ -82,12 +82,11 @@ classdef TracerData < handle
 %                 [FileName,PathName] = uigetfile({'*.mat','MATLAB Data';'*.*','All Files (*.*)'},...
 %                                                 'Select TraceData File',...
 %                                                 fullfile(LastDir,'*.mat'));
-                                            
-                [FileName,PathName] = uigetfile({'*.mat;*.001;*.003','TraceData & Nanoscope Files (*.mat,*.001,*.003)';...
+                num_ext = sprintf('*.%03d;',1:999);
+                num_ext(end) = [];
+                [FileName,PathName] = uigetfile({['*.mat;',num_ext],'TraceData & Nanoscope Files (*.mat,*.###)';...
                                                 '*.mat','TraceData File (*.mat)';...
-                                                '*.001;*.003','Nanoscope Files';...
-                                                '*.001','Nanoscope v1 (*.001)';...
-                                                '*.003','Nanoscope v3 (*.003)';...
+                                                num_ext,'Nanoscope Files (*.###)';...
                                                 '*.*','All Files (*.*)'},...
                                                 'Select TraceData or Nanoscope Image File',...
                                                 fullfile(LastDir,'*.mat'));
@@ -99,15 +98,17 @@ classdef TracerData < handle
                 
                 [~,~,ext] = fileparts(FileName);
                 switch lower(ext)
-                    case {'.001','.003'} %nanoscope files
-                        data = TracerGUI.TracerData.processAFMImage(fullfile(PathName,FileName));
-                        dataChangedSinceSave = true;
-                        FileName = '';
                     case '.mat'
                         data = load(fullfile(PathName,FileName));
                     otherwise
-                        warndlg('Selected file was not a *.mat data file, nor *.00x Nanoscope file.\n Attempting to load as MATLAB Data','modal');
-                        data = load(fullfile(PathName,FileName),'-mat');
+                        if isnan(str2num(ext(2:end)))
+                            warndlg('Selected file was not a *.mat data file, nor *.00x Nanoscope file.\n Attempting to load as MATLAB Data','modal');
+                            data = load(fullfile(PathName,FileName),'-mat');
+                        else
+                            data = TracerGUI.TracerData.processAFMImage(fullfile(PathName,FileName));
+                            dataChangedSinceSave = true;
+                            FileName = '';
+                        end
                 end
      
             elseif isstruct(data) %struct specified
@@ -123,15 +124,17 @@ classdef TracerData < handle
                 [PathName,FileName,ext] = fileparts(data);
                 FileName = [FileName,ext];
                 switch lower(ext)
-                    case {'.001','.003'} %nanoscope files
-                        data = TracerData.processAFMImage(fullfile(PathName,FileName));
-                        dataChangedSinceSave = true;
-                        FileName = '';
                     case '.mat'
                         data = load(fullfile(PathName,FileName));
                     otherwise
-                        warndlg('Selected file was not a *.mat data file, nor *.00x Nanoscope file.\n Attempting to load as MATLAB Data','modal');
-                        data = load(fullfile(PathName,FileName),'-mat');
+                        if isnan(str2num(ext(2:end)))
+                            warndlg('Selected file was not a *.mat data file, nor *.00x Nanoscope file.\n Attempting to load as MATLAB Data','modal');
+                            data = load(fullfile(PathName,FileName),'-mat');
+                        else
+                            data = TracerGUI.TracerData.processAFMImage(fullfile(PathName,FileName));
+                            dataChangedSinceSave = true;
+                            FileName = '';
+                        end
                 end
             else
                 error('unexpected input type');
