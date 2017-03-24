@@ -555,7 +555,7 @@ classdef TracerData < handle
         end
             
         %% Merge Segments
-        function mergeSegments(this,SegList)
+        function [OutMol,OutSeg]=mergeSegments(this,SegList)
             %% create undo buffer
             this.undoDataBuffer = this.data;
             this.undoBufferAvailable = true;
@@ -584,6 +584,9 @@ classdef TracerData < handle
             
             %% Set merged data
             this.data.MoleculeData(SegList(1).Molecule).Segment(SegList(1).Segment) = NewSegment;
+            
+            OutMol = SegList(1).Molecule;
+            OutSeg = SegList(1).Segment;
             
             SegList(1) = [];
             %% Delete other segments

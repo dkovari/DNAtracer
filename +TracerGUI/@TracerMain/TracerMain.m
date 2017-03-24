@@ -147,6 +147,7 @@ classdef TracerMain < handle
         createNewSegment(this,Molecule,Segment);
         selectedMoleculeChangedViaTable(this,Molecules,Segments);
         selectedMoleculeChangedViaPlot(this,Molecule,Segment);
+        selectedMoleculeChangedViaMerge(this,Molecule,Segment);
     end
     %% Event Callbacks
     methods

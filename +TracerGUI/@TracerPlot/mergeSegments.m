@@ -219,7 +219,9 @@ catch
 end
 %% Process
 if numel(MergeList)>1
-    this.traceDataHandler.mergeSegments(MergeList);
+    this.mainController.selectedMoleculeChangedViaMerge([],[]);
+    [OutMol,OutSeg]=this.traceDataHandler.mergeSegments(MergeList);
+    this.mainController.selectedMoleculeChangedViaMerge(OutMol,OutSeg);
 end
 
 this.updateCRsplines();

@@ -2,28 +2,23 @@ function updateCRsplines(this)
 %called when splines need to be updated
 
 
-set(this.hFig,'Pointer','watch');
-
 nMol = numel(this.traceDataHandler.MoleculeData);
 
 if isempty(this.MoleculeCR)
     this.MoleculeCR(nMol) = struct('SegCR',crspline());
 end
 
-%% Delete extra molecules
-for n=nMol+1:numel(this.MoleculeCR)
-    for j=1:numel(this.MoleculeCR(n).SegCR)
-        try
-        delete(this.MoleculeCR(n).SegCR(j));
-        catch
-        end
-    end     
-end
-this.MoleculeCR(nMol+1:end) = [];
-
 %% Create extra MoleculeCR if we've added new molecules
 if nMol>numel(this.MoleculeCR)
     this.MoleculeCR(nMol) = struct('SegCR',crspline());
+elseif nMol<numel(this.MoleculeCR) %% delete extra molecules
+    for n=nMol+1:numel(this.MoleculeCR)
+        try
+            delete(this.MoleculeCR(n).SegCR);
+        catch
+        end
+    end
+    this.MoleculeCR(nMol+1:end) = [];
 end
 
 %%
@@ -77,5 +72,3 @@ end
 
 %% set the linestyle for selected molecules
 this.setSelectedCRsplines();
-
-set(this.hFig,'Pointer','arrow');

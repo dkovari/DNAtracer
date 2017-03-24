@@ -3,6 +3,12 @@ function updatedSelectedRows(this)
 
 %% convert selected segment list to row index
 rows = zeros(numel(this.mainController.selectedMoleculeSegments),1);
+
+if isempty(rows)
+    this.gTable.setSelectedDataRows([]);
+    return;
+end
+
 data=this.gTable.Data;
 mols = data(:,1);
 segs = data(:,2);
