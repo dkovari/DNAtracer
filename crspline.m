@@ -494,8 +494,8 @@ classdef crspline < matlab.mixin.SetGet
             end
         end
     end
-
-    methods %callbacks
+    
+    methods(Hidden) %callbacks
         function MouseClick(this,~,e)
             [~,this.MOVE_PT] = min( (this.pX-e.IntersectionPoint(1)).^2 + (this.pY-e.IntersectionPoint(2)).^2);
             if e.Button==1
