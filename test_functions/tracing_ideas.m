@@ -2,7 +2,7 @@
 
 
 close all;
-clear all;
+% clear all;
 %% load image
 if ~exist('LastDir','var')
     LastDir = [];
@@ -29,11 +29,17 @@ if isempty(NS_data)
 end
 im_data = DIreader.get_NS_img_data(NS_data(1), 1); %read the data
 
+figure();
+imagesc(im_data);
+im_data_mean = mean(im_data(:));
+im_data_std = std(im_data(:));
+extras.addLevelsUIButton(gcf)
+title('Raw Image');
+axis image
+
 %% Flatten Image
-% figure();
-% imagesc(im_data);
-% title('Raw Image');
-% axis image
+
+
 %parabolic flatten
 [xx,yy] = meshgrid(1:size(im_data,2),1:size(im_data,1));
 xx=reshape(xx,[],1);
@@ -45,10 +51,19 @@ A = mldivide(XYmat,reshape(im_data,[],1));
 im_data_flat = reshape(im_data,[],1)-XYmat*A;
 im_data_flat = reshape(im_data_flat,size(im_data));
 
-% figure()
-% imagesc(im_data_flat);
-% title('paraboloid flattened');
-% axis image
+
+
+figure()
+imagesc(im_data_flat);
+
+im_data_flat_mean = mean(im_data_flat(:));
+im_data_flat_std = std(im_data_flat(:));
+%set(gca,'clim',im_data_flat_mean+[0,2]);
+
+extras.addLevelsUIButton(gcf)
+
+title('paraboloid flattened');
+axis image
 %% Estimate Threshold 
 
 im_data_flat = im_data_flat - min(im_data_flat(:)); %shift so lowest value is zero
@@ -59,25 +74,25 @@ im_data_flat = wiener2(im_data_flat,5);
 mIm = nanmean(im_data_flat(:));
 
 [Counts,edges] = histcounts(im_data_flat(:));
-% [X,Y] = edges2stairs(edges,Counts);
-% lY = log10(Y);
-% lY(Y==0) = 0;
-% figure();
-% plot(X,lY,'-k','linewidth',1.5);
-% 
-% hold on;
+[X,Y] = TraceHelpers.edges2stairs(edges,Counts);
+lY = log10(Y);
+lY(Y==0) = 0;
+figure();
+plot(X,lY,'-k','linewidth',1.5);
+hold on;
+title('Image intensity')
 
 %fit lower-end data to a gaussian distribution
 [muhat,sighat] = normfit(im_data_flat(im_data_flat<2*mIm));
-% x=linspace(0,2*mIm,100);
-% y = log10(max(Counts)*exp(-(x-muhat).^2./(2*sighat^2)));
-% plot(x,y,'--');
+x=linspace(0,2*mIm,100);
+y = log10(max(Counts)*exp(-(x-muhat).^2./(2*sighat^2)));
+plot(x,y,'--');
 
 % a good threshold seems to be mu+2*sigma
 th = muhat+2*sighat;
 
-% YL = get(gca,'ylim');
-% plot([th,th],YL,'-.r');
+YL = get(gca,'ylim');
+plot([th,th],YL,'-.r');
 
 %make binary
 bin_data = im_data_flat>th;
@@ -89,37 +104,37 @@ bin_data = bwareafilt(bin_data,[40,Inf]);
 %clear objects on edge
 bin_data = imclearborder(bin_data);
 
-% figure();
-% imagesc(bin_data);
-% axis image
-% title('binary filtered');
+figure();
+imagesc(bin_data);
+axis image
+title('binary filtered');
 
 
 %constuct a blured mask to use as a filter for the image data
 %mask_data = gaussian_filter(double(imdilate(bin_data,ones(3))),5,15);
-mask_data = radial_blur(double(bin_data),3);
-% figure();
-% imagesc(mask_data);
-% axis image
-% title('blured mask')
+mask_data = TraceHelpers.radial_blur(double(bin_data),3);
+figure();
+imagesc(mask_data);
+axis image
+title('blured mask')
 
 %make a filtered image using mask
 im_filt = im_data_flat.*mask_data;
-% figure();
-% imagesc(im_filt);
-% axis image
-% title('Original with blured mask');
+figure();
+imagesc(im_filt);
+axis image
+title('Original with blured mask');
 %% ID Objects
 CC = bwconncomp(bin_data);
 %each object is defined by each cell in the pixel list: CC.PixelIdxList
 
 %% Apply Ridge filter using identified traces
-R = ridgefilt_idx(im_filt,CC.PixelIdxList);
+R = TraceHelpers.ridgefilt_idx(im_filt,CC.PixelIdxList);
 
-% figure();
-% imagesc(R);
-% axis image;
-% title('ridge filter')
+figure();
+imagesc(R);
+axis image;
+title('ridge filter')
 
 %% Trace using HW's code
 
@@ -139,7 +154,7 @@ for n=1:numel(CC.PixelIdxList)
     SI = zeros(diff(SUBS,1,1)+1);
     SI(ind2) = IM(CC.PixelIdxList{n});
     
-    MoleculeData(n).YX = trace_HW(SI,THRESH);
+    MoleculeData(n).YX = TraceHelpers.trace_HW(SI,THRESH);
     
     for j=1:numel(MoleculeData(n).YX)
         if ~isempty(MoleculeData(n).YX{j})

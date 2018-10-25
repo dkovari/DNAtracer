@@ -24,14 +24,24 @@ if(errnum) % display error if file does not open
 else
     error = fseek(fid, NS_data.offset, 'bof');
     if ~error % do if fseek was successful
-        raw_data = double(fread(fid, [NS_data.rows, NS_data.columns], 'int16'));
+        switch (NS_data.version)
+            case 5300003
+                raw_data = double(fread(fid, [NS_data.rows, NS_data.columns], 'int16'));
+            case 9010300
+                raw_data = double(fread(fid, [NS_data.rows, NS_data.columns], 'int16'));
+            case 920
+                raw_data = double(fread(fid, [NS_data.rows, NS_data.columns], 'int32'));
+            otherwise
+                disp('Warning! Image from untested version of NanoScope software!')
+                raw_data = double(fread(fid, [NS_data.rows, NS_data.columns], 'int16'));
+        end
         img_data = rot90(raw_data);
         if (scaleFlag)
             scaler = NS_data.Z_scale/65536*NS_data.Zsens;
             img_data = img_data*scaler; % convert the scaled, integer data to real height measures
-        end;
-    end;
+        end
+    end
     fclose(fid);
-end;
+end
 end
 
