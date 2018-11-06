@@ -25,7 +25,7 @@ parse(p,varargin{:});
 %% get file
 persistent LastDir;
 if nargin<1 || isempty(filename)
-    [FileName,PathName] = uigetfile({'*.001;*.003','Nanoscope Files';'*.*','All Files (*.*)'},'Select Nanoscope File',fullfile(LastDir,'*.001'));
+    [FileName,PathName] = uigetfile({'*.spm;*.001;*.003','Nanoscope Files';'*.*','All Files (*.*)'},'Select Nanoscope File',fullfile(LastDir,'*.spm'));
     if FileName == 0
         return;
     end

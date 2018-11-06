@@ -2,7 +2,7 @@ function [TraceData,PathName,FileName] = DNAtracer(filename,varargin)
 % DNAtracer - Trace DNA molecules in an AFM image
 %
 % Input:
-%   filename:   nanoscope file to trace (*.001 or *.003 format)
+%   filename:   nanoscope file to trace (*.spm, *.001 or *.003 format)
 %               If filename=[] (or no arguemnts are specified) then the
 %               program will prompt the user to select a file.
 % Parameters:
@@ -18,7 +18,7 @@ import TraceHelpers.*
 %% Select image to load
 persistent LastDir;
 if nargin<1 || isempty(filename)
-    [FileName,PathName] = uigetfile({'*.001;*.003','Nanoscope Files';'*.*','All Files (*.*)'},'Select Nanoscope File',fullfile(LastDir,'*.001'));
+    [FileName,PathName] = uigetfile({'*.spm;*.001;*.003','Nanoscope Files';'*.*','All Files (*.*)'},'Select Nanoscope File',fullfile(LastDir,'*.spm'));
     if FileName == 0
         return;
     end
