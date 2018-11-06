@@ -141,7 +141,11 @@ end
 IM = R; %image data to use in tracing, could change this to im_filt
 THRESH = 0.12; %threshold to use, if using im_filt this should be "th"
 
-MoleculeData(numel(CC.PixelIdxList)) = struct('SubImg',[],'PixelIdxList',[],'Segment',[]);
+if numel(CC.PixelIdxList)>0
+    MoleculeData(numel(CC.PixelIdxList)) = struct('SubImg',[],'PixelIdxList',[],'Segment',[]);
+else
+    MoleculeData(numel(CC.PixelIdxList)) = struct('SubImg',{},'PixelIdxList',{},'Segment',{});
+end
 
 for n=1:numel(CC.PixelIdxList)
     MoleculeData(n).PixelIdxList = CC.PixelIdxList{n};
